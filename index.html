@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>POTUS — Presidential Simulation</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d14;color:#e8e8f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+#app{max-width:600px;margin:0 auto;padding:8px}
+.card{background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:12px;margin-bottom:8px}
+.card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6c757d;margin-bottom:8px}
+h1{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.header-bar{background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.header-title{display:flex;flex-direction:column}
+.header-title span:first-child{font-size:18px;font-weight:800;color:#e8e8f4;letter-spacing:-0.5px}
+.header-title span:last-child{font-size:11px;color:#6c757d;letter-spacing:1px;text-transform:uppercase}
+.header-stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat-pill{background:#0d0d14;border:1px solid #1e2035;border-radius:6px;padding:4px 8px;text-align:center}
+.stat-pill .val{font-size:16px;font-weight:700}
+.stat-pill .lbl{font-size:9px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.bar-label{width:22px;font-size:11px;font-weight:700;text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:8px;background:#1e2035;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.4s ease}
+.bar-pct{width:36px;font-size:11px;text-align:right;color:#6c757d;flex-shrink:0}
+.r-color{background:#dc3545}
+.d-color{background:#0d6efd}
+.i-color{background:#ffc107}
+.green-color{background:#28a745}
+.red-color{background:#dc3545}
+.yellow-color{background:#ffc107}
+.orange-color{background:#fd7e14}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric-item{background:#0d0d14;border-radius:8px;padding:8px}
+.metric-item .m-label{font-size:10px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.metric-item .m-value{font-size:18px;font-weight:700}
+.metric-item .m-bar{height:4px;background:#1e2035;border-radius:2px;margin-top:4px;overflow:hidden}
+.metric-item .m-bar-fill{height:100%;border-radius:2px;transition:width 0.4s}
+.conflicts-list{display:flex;flex-direction:column;gap:6px}
+.conflict-item{background:#0d0d14;border-radius:8px;padding:8px;border-left:3px solid #dc3545}
+.conflict-name{font-size:12px;font-weight:700;color:#e8e8f4}
+.conflict-balance{font-size:11px;color:#6c757d;margin-top:2px}
+.balance-bar{height:4px;background:#1e2035;border-radius:2px;margin-top:4px;overflow:hidden;position:relative}
+.balance-fill{height:100%;border-radius:2px;position:absolute;top:0}
+.relations-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.rel-item{background:#0d0d14;border-radius:6px;padding:5px 6px;text-align:center}
+.rel-name{font-size:9px;color:#6c757d;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-val{font-size:13px;font-weight:700}
+.news-item{font-size:12px;padding:5px 0;border-bottom:1px solid #1e2035;color:#b0b0c4;line-height:1.4}
+.news-item:last-child{border-bottom:none}
+.warning-panel{background:#1a0a0a;border:1px solid #dc3545;border-radius:8px;padding:10px;margin-bottom:8px}
+.warning-text{font-size:12px;color:#ff6b6b;font-weight:600;line-height:1.6}
+.actions-header{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6c757d;margin:10px 0 6px}
+.action-card{background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all 0.15s;position:relative;border-left:3px solid #1e2035;user-select:none;-webkit-tap-highlight-color:transparent}
+.action-card:hover,.action-card:active{background:#1a1a2e;border-color:#3a3a5c;transform:translateX(2px)}
+.action-card.foreign{border-left-color:#0d6efd}
+.action-card.military{border-left-color:#dc3545}
+.action-card.economic{border-left-color:#28a745}
+.action-card.domestic{border-left-color:#ffc107}
+.action-card.political{border-left-color:#9b59b6}
+.action-card.crimes{border-left-color:#e74c3c}
+.action-name{font-size:13px;font-weight:700;color:#e8e8f4;margin-bottom:2px}
+.action-desc{font-size:11px;color:#6c757d;line-height:1.4}
+.action-badges{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.badge{font-size:9px;font-weight:700;letter-spacing:0.5px;padding:2px 5px;border-radius:4px;text-transform:uppercase}
+.badge-cat{background:#1e2035;color:#8888aa}
+.badge-chance-high{background:#0a2a0a;color:#28a745;border:1px solid #28a745}
+.badge-chance-med{background:#2a2a00;color:#ffc107;border:1px solid #ffc107}
+.badge-chance-low{background:#2a0a0a;color:#dc3545;border:1px solid #dc3545}
+.badge-cooldown{background:#1e1e00;color:#aaa800;border:1px solid #5a5a00}
+.badge-onetime{background:#1a0a1a;color:#9b59b6;border:1px solid #5a2a6a}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:100;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:20px}
+.outcome-box{background:#13131f;border:1px solid #1e2035;border-radius:14px;padding:20px;max-width:560px;width:100%;margin-top:20px}
+.outcome-label{font-size:28px;font-weight:900;letter-spacing:2px;text-align:center;margin-bottom:12px}
+.outcome-label.success{color:#28a745}
+.outcome-label.partial{color:#ffc107}
+.outcome-label.fail{color:#dc3545}
+.outcome-label.undetected{color:#28a745}
+.outcome-label.detected{color:#ffc107}
+.outcome-label.exposed{color:#dc3545}
+.outcome-narrative{font-size:14px;line-height:1.7;color:#c8c8e4;margin-bottom:14px;padding:10px;background:#0d0d14;border-radius:8px;border-left:3px solid #1e2035}
+.effects-list{margin-bottom:14px}
+.effect-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1e2035;font-size:12px}
+.effect-row:last-child{border-bottom:none}
+.effect-name{color:#8888aa}
+.effect-pos{color:#28a745;font-weight:700}
+.effect-neg{color:#dc3545;font-weight:700}
+.btn{background:#1e2035;border:none;color:#e8e8f4;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;letter-spacing:0.5px}
+.btn:hover{background:#2a2a4a}
+.btn-primary{background:#0d6efd}
+.btn-primary:hover{background:#0b5ed7}
+.btn-danger{background:#dc3545}
+.btn-danger:hover{background:#c82333}
+.midterm-screen{text-align:center;padding:20px 0}
+.midterm-title{font-size:32px;font-weight:900;color:#ffc107;letter-spacing:2px;margin-bottom:8px}
+.seat-display{display:flex;justify-content:center;gap:30px;margin:16px 0}
+.seat-chamber{text-align:center}
+.seat-count{font-size:48px;font-weight:900;line-height:1}
+.seat-label{font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.seat-status{font-size:13px;font-weight:700;margin-top:6px}
+.held{color:#28a745}
+.lost{color:#dc3545}
+.end-screen{padding:10px 0}
+.end-title{font-size:36px;font-weight:900;letter-spacing:2px;text-align:center;margin-bottom:6px}
+.victory-title{color:#28a745}
+.defeat-title{color:#dc3545}
+.end-reason{font-size:14px;color:#b0b0c4;text-align:center;margin-bottom:16px;padding:10px;background:#0d0d14;border-radius:8px}
+.score-display{text-align:center;margin:16px 0}
+.score-number{font-size:56px;font-weight:900;color:#ffc107}
+.score-label{font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:1px}
+.legacy-title{font-size:18px;font-weight:700;color:#e8e8f4;text-align:center;margin:8px 0 16px}
+.achievements-list{margin-bottom:12px}
+.achievement-item{font-size:12px;padding:5px 8px;background:#0d1a0d;border-radius:6px;margin-bottom:4px;color:#28a745;border-left:3px solid #28a745}
+.disaster-item{font-size:12px;padding:5px 8px;background:#1a0d0d;border-radius:6px;margin-bottom:4px;color:#dc3545;border-left:3px solid #dc3545}
+.history-list{max-height:200px;overflow-y:auto;background:#0d0d14;border-radius:8px;padding:8px}
+.history-item{font-size:11px;padding:3px 0;border-bottom:1px solid #1a1a2a;color:#8888aa}
+.history-item:last-child{border-bottom:none}
+.history-item span{color:#e8e8f4;font-weight:600}
+.score-bar{height:12px;background:#1e2035;border-radius:6px;overflow:hidden;margin:8px 0}
+.score-bar-fill{height:100%;background:linear-gradient(90deg,#dc3545,#ffc107,#28a745);border-radius:6px;transition:width 0.8s ease}
+.section-sep{height:1px;background:#1e2035;margin:10px 0}
+.page-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.page-title h2{font-size:20px;font-weight:800}
+.cat-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.cat-btn{padding:4px 8px;border-radius:5px;border:1px solid #1e2035;background:#0d0d14;color:#6c757d;font-size:10px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.15s}
+.cat-btn.active{background:#1e2035;color:#e8e8f4;border-color:#3a3a5c}
+.cat-btn.foreign{border-color:#0d6efd;color:#0d6efd}
+.cat-btn.foreign.active{background:#0d2050;color:#6ea8fe}
+.cat-btn.military{border-color:#dc3545;color:#dc3545}
+.cat-btn.military.active{background:#2a0a10;color:#ff8090}
+.cat-btn.economic{border-color:#28a745;color:#28a745}
+.cat-btn.economic.active{background:#0a1a0e;color:#6dde8d}
+.cat-btn.domestic{border-color:#ffc107;color:#ffc107}
+.cat-btn.domestic.active{background:#1a1500;color:#ffe066}
+.cat-btn.political{border-color:#9b59b6;color:#9b59b6}
+.cat-btn.political.active{background:#1a0a2a;color:#c880f0}
+.cat-btn.crimes{border-color:#e74c3c;color:#e74c3c}
+.cat-btn.crimes.active{background:#2a0808;color:#ff8070}
+.no-actions{text-align:center;color:#6c757d;padding:20px;font-size:13px}
+.turn-advance-btn{width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#1e2035,#2a2a4a);color:#e8e8f4;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s;margin-top:4px}
+.turn-advance-btn:hover{background:linear-gradient(135deg,#2a2a4a,#3a3a6a);transform:translateY(-1px)}
+.flag-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.flag-item{background:#0d0d14;border-radius:6px;padding:5px 7px;font-size:10px}
+.flag-active{color:#28a745}
+.flag-inactive{color:#6c757d}
+.approval-big{font-size:32px;font-weight:900;text-align:center;margin:4px 0}
+.nav-tabs{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.nav-tab{padding:5px 10px;border-radius:6px;border:1px solid #1e2035;background:#0d0d14;color:#6c757d;font-size:11px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.15s}
+.nav-tab.active{background:#1e2035;color:#e8e8f4;border-color:#3a3a5c}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid #1e2035;border-top-color:#ffc107;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-in{animation:fadeIn 0.3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.threat-dots{display:flex;gap:4px}
+.threat-dot{width:10px;height:10px;border-radius:50%;background:#1e2035}
+.threat-dot.active-1{background:#28a745}
+.threat-dot.active-2{background:#ffc107}
+.threat-dot.active-3{background:#fd7e14}
+.threat-dot.active-4{background:#dc3545}
+.threat-dot.active-5{background:#ff0000;box-shadow:0 0 6px #ff0000}
+.event-flash{background:#1a1500;border:1px solid #ffc107;border-radius:8px;padding:10px;margin-bottom:6px}
+.event-flash-title{font-size:12px;font-weight:700;color:#ffc107;margin-bottom:3px}
+.event-flash-body{font-size:11px;color:#c8c8a4;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ── GAME CONSTANTS ────────────────────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const START_MONTH = 5;
+const START_YEAR = 2026;
+const APPROVAL_SCALE = 0.55;
+
+// ── INITIAL STATE ─────────────────────────────────────────────────────────────
+function createState() {
+  return {
+    turn: 0, gameOver: false, victory: false, endReason: '',
+    approval_r: 88, approval_d: 10, approval_i: 40, approval: 47,
+    gdp_growth: 2.1, unemployment: 4.1, inflation: 3.8,
+    interest_rate: 5.25, market_confidence: 62,
+    military_readiness: 78, threat_level: 2,
+    legal_exposure: 25, civil_unrest: 30, congress_support: 53,
+    media_favorability: 22,
+    house_seats: 222, senate_seats: 53, budget_health: 72,
+    consecutive_low_market: 0,
+    active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict'],
+    completed_actions: new Set(),
+    action_cooldowns: {},
+    news_log: ['Your presidency begins. The world watches.'],
+    major_achievements: [], major_disasters: [],
+    action_history: [],
+    seen_events: new Set(),
+    midterm_done: false,
+    pending_events: [],
+    flags: {
+      ukraine_war_active: true, israel_conflict_active: true,
+      iran_nuclear_program: true, china_taiwan_tension: true,
+      nk_missile_tests: true, border_crisis: true,
+      massive_tariffs: false, nato_stressed: true,
+      iran_war: false, china_war: false, world_war_3: false,
+      economic_collapse: false, shutdown_active: false,
+      ukraine_peace: false, nk_summit_happened: false,
+      phe_declared: false, iran_deal_happened: false,
+      purged_doj: false, russia_warming: false,
+      pandemic_active: false, pandemic_warning: false,
+      trade_war_china: true, recession_risk: false,
+      summit_done: false, ceasefire_tried: false,
+    },
+    relations: {
+      Russia: -38, China: -25, Ukraine: 52, EU: 22, UK: 62,
+      NATO: 28, Israel: 72, 'Saudi Arabia': 45, Iran: -82,
+      'North Korea': -88, Mexico: 15, Canada: 32, Taiwan: 62,
+      Japan: 68, 'South Korea': 65, UN: 12, Turkey: 20, India: 45
+    },
+    conflict_balances: { 'Ukraine-Russia War': -12, 'Gaza Conflict': 20 }
+  };
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function getDate(s) {
+  const idx = (START_MONTH + s.turn) % 12;
+  const year = START_YEAR + Math.floor((START_MONTH + s.turn) / 12);
+  return { month: MONTHS[idx], year };
+}
+
+function syncApproval(s) {
+  s.approval = clamp(0.32 * s.approval_r + 0.35 * s.approval_d + 0.33 * s.approval_i, 0, 100);
+}
+
+function applyEffect(s, key, val) {
+  if (key.startsWith('rel:')) {
+    const c = key.slice(4);
+    if (s.relations[c] !== undefined) s.relations[c] = clamp(s.relations[c] + val, -100, 100);
+  } else if (key.startsWith('flag:')) {
+    s.flags[key.slice(5)] = val;
+  } else if (key === 'approval_r') {
+    s.approval_r = clamp(s.approval_r + val * APPROVAL_SCALE, 20, 99);
+    syncApproval(s);
+  } else if (key === 'approval_d') {
+    s.approval_d = clamp(s.approval_d + val * APPROVAL_SCALE, 5, 55);
+    syncApproval(s);
+  } else if (key === 'approval_i') {
+    s.approval_i = clamp(s.approval_i + val * APPROVAL_SCALE, 5, 95);
+    syncApproval(s);
+  } else if (key === 'approval') {
+    const sc = val * APPROVAL_SCALE;
+    s.approval_r = clamp(s.approval_r + sc * 0.55, 20, 99);
+    s.approval_d = clamp(s.approval_d + sc * 0.45, 5, 55);
+    s.approval_i = clamp(s.approval_i + sc * 0.60, 5, 95);
+    syncApproval(s);
+  } else if (key === 'threat_level') {
+    s.threat_level = clamp(s.threat_level + val, 1, 5);
+  } else if (key === 'add_conflict') {
+    if (!s.active_conflicts.includes(val)) s.active_conflicts.push(val);
+  } else if (key === 'remove_conflict') {
+    s.active_conflicts = s.active_conflicts.filter(c => c !== val);
+  } else if (key === 'achievement') {
+    if (val && !s.major_achievements.includes(val)) s.major_achievements.push(val);
+  } else if (key === 'disaster') {
+    if (val && !s.major_disasters.includes(val)) s.major_disasters.push(val);
+  } else if (key === 'balance:Ukraine-Russia War') {
+    if (s.conflict_balances['Ukraine-Russia War'] !== undefined)
+      s.conflict_balances['Ukraine-Russia War'] = clamp(s.conflict_balances['Ukraine-Russia War'] + val, -90, 90);
+  } else if (key === 'balance:Gaza Conflict') {
+    if (s.conflict_balances['Gaza Conflict'] !== undefined)
+      s.conflict_balances['Gaza Conflict'] = clamp(s.conflict_balances['Gaza Conflict'] + val, -90, 90);
+  } else if (key === 'gdp_growth') {
+    s.gdp_growth = clamp(s.gdp_growth + val, -15, 12);
+  } else if (key === 'unemployment') {
+    s.unemployment = clamp(s.unemployment + val, 2, 30);
+  } else if (key === 'inflation') {
+    s.inflation = clamp(s.inflation + val, -2, 40);
+  } else if (key === 'market_confidence') {
+    s.market_confidence = clamp(s.market_confidence + val, 0, 100);
+  } else if (key === 'military_readiness') {
+    s.military_readiness = clamp(s.military_readiness + val, 0, 100);
+  } else if (key === 'budget_health') {
+    s.budget_health = clamp(s.budget_health + val, 0, 100);
+  } else if (key === 'legal_exposure') {
+    s.legal_exposure = clamp(s.legal_exposure + val, 0, 100);
+  } else if (key === 'civil_unrest') {
+    s.civil_unrest = clamp(s.civil_unrest + val, 0, 100);
+  } else if (key === 'congress_support') {
+    s.congress_support = clamp(s.congress_support + val, 10, 95);
+  } else if (key === 'house_seats') {
+    s.house_seats = clamp(s.house_seats + val, 100, 340);
+  } else if (key === 'senate_seats') {
+    s.senate_seats = clamp(s.senate_seats + val, 30, 100);
+  }
+}
+
+function applyEffects(s, effects) {
+  for (const [k, v] of Object.entries(effects)) applyEffect(s, k, v);
+}
+
+function addNews(s, item) {
+  s.news_log.unshift(item);
+  s.news_log = s.news_log.slice(0, 6);
+}
+
+function calcScore(s) {
+  let score = Math.floor(s.approval * 4);
+  score += Math.floor(s.market_confidence * 1.5);
+  score += Math.floor(s.military_readiness * 0.8);
+  score -= Math.floor(s.legal_exposure * 1.5);
+  score -= Math.floor(s.civil_unrest * 0.8);
+  const avgRel = Object.values(s.relations).reduce((a,b)=>a+b,0) / Object.keys(s.relations).length;
+  score += Math.floor(avgRel * 0.8);
+  score += s.major_achievements.length * 50;
+  score -= s.major_disasters.length * 45;
+  if (s.victory && s.turn >= 16 && s.approval > 35) score += (s.turn - 15) * 2;
+  if (s.victory && s.inflation < 4.5) score += 40;
+  if (s.approval_r > 75) score += 20;
+  if (s.approval_d > 20) score += Math.floor((s.approval_d - 20) * 0.8);
+  if (avgRel > 5) score += 30;
+  return clamp(score, 0, 1000);
+}
+
+function legacyTitle(score, victory) {
+  if (!victory) return 'Cautionary Tale';
+  if (score >= 850) return 'Greatest President in History';
+  if (score >= 700) return 'Transformational Leader';
+  if (score >= 550) return 'Solid Commander-in-Chief';
+  if (score >= 400) return 'Mixed Record, Overall Positive';
+  if (score >= 280) return 'Controversial Figure';
+  if (score >= 150) return 'Failed Presidency';
+  return 'Worst President in American History';
+}
+
+// ── PASSIVE TICK ──────────────────────────────────────────────────────────────
+function passiveTick(s) {
+  s.inflation = clamp(s.inflation + rnd(-0.1, 0.1) - 0.05, -2, 40);
+  s.gdp_growth = clamp(s.gdp_growth + rnd(-0.15, 0.2), -15, 12);
+  s.unemployment = clamp(s.unemployment + rnd(-0.1, 0.12), 2, 30);
+
+  // Market recovery
+  const inWar = s.flags.iran_war || s.flags.china_war || s.flags.world_war_3;
+  if (!inWar && s.market_confidence > 20) {
+    const target = s.flags.massive_tariffs ? 65 : 75;
+    if (s.market_confidence < target) s.market_confidence = Math.min(target, s.market_confidence + 0.6);
+  }
+
+  // Civil unrest decay
+  s.civil_unrest = clamp(s.civil_unrest - 0.5, 0, 100);
+
+  // Budget recovery
+  s.budget_health = clamp(s.budget_health + 0.55, 0, 100);
+
+  // Inflation consequences
+  if (s.inflation > 8) {
+    s.approval_i = clamp(s.approval_i - 0.4, 5, 95);
+    s.approval_r = clamp(s.approval_r - 0.3, 20, 99);
+    syncApproval(s);
+  }
+
+  // D approval soft cap
+  if (s.approval_d > 45) {
+    s.approval_d = clamp(s.approval_d - 0.35, 5, 55);
+    syncApproval(s);
+  }
+
+  // Shutdown
+  if (s.budget_health < 15 && !s.flags.shutdown_active) {
+    s.flags.shutdown_active = true;
+    applyEffects(s, { approval_i: -5, approval_r: -3, civil_unrest: 8 });
+    addNews(s, '⚠ GOVERNMENT SHUTDOWN begins — federal agencies go dark');
+  }
+  if (s.flags.shutdown_active) {
+    s.approval_i = clamp(s.approval_i - 0.8, 5, 95);
+    s.approval_r = clamp(s.approval_r - 0.3, 20, 99);
+    s.civil_unrest = clamp(s.civil_unrest + 0.6, 0, 100);
+    syncApproval(s);
+    if (s.budget_health >= 30) {
+      s.flags.shutdown_active = false;
+      addNews(s, 'Government shutdown ends — continuing resolution signed');
+    }
+  }
+
+  // Iran war sustained inflation
+  if (s.flags.iran_war) {
+    if (!s.active_conflicts.includes('Iran-US War')) s.active_conflicts.push('Iran-US War');
+    s.inflation = clamp(s.inflation + 0.10, -2, 40);
+  }
+
+  // Economic collapse via sustained low market
+  if (s.market_confidence < 15) s.consecutive_low_market++;
+  else s.consecutive_low_market = 0;
+  if (s.consecutive_low_market >= 3 && !s.flags.economic_collapse) {
+    s.flags.economic_collapse = true;
+    addNews(s, '💥 ECONOMIC COLLAPSE — markets in freefall, circuit breakers triggered');
+  }
+
+  // Conflict balance drift
+  for (const c of s.active_conflicts) {
+    if (s.conflict_balances[c] === undefined) s.conflict_balances[c] = 0;
+    if (c === 'Ukraine-Russia War') {
+      let adv = rnd(-0.5, 0.5);
+      if (s.completed_actions.has('cut_ukraine_aid')) adv += 0.3;
+      if (s.completed_actions.has('double_ukraine_aid')) adv -= 0.3;
+      s.conflict_balances[c] = clamp(s.conflict_balances[c] + adv, -90, 90);
+    } else {
+      s.conflict_balances[c] = clamp(s.conflict_balances[c] + rnd(-0.3, 0.3), -90, 90);
+    }
+  }
+  // Remove balances for ended conflicts
+  for (const k of Object.keys(s.conflict_balances)) {
+    if (!s.active_conflicts.includes(k)) delete s.conflict_balances[k];
+  }
+}
+
+// ── RANDOM EVENTS ─────────────────────────────────────────────────────────────
+const EVENTS = [
+  { id:'nk_missile', headline:'North Korea fires ICBM over Japan', body:'Kim Jong-un launches a missile that arcs over Japanese territory. Tokyo scrambles fighters. The UN convenes in emergency session.',
+    condition: s => s.flags.nk_missile_tests && !s.flags.nk_summit_happened, prob: 0.12,
+    effects: { threat_level:1, approval:-2, 'rel:Japan':-5 } },
+  { id:'russian_advance', headline:'Russia seizes territory in eastern Ukraine', body:'Russian armored columns push forward, capturing several towns. Zelensky calls an emergency session. European leaders demand a US response.',
+    condition: s => s.flags.ukraine_war_active, prob: 0.12,
+    effects: { 'rel:Ukraine':-8, 'rel:NATO':-5, approval:-2, threat_level:1 } },
+  { id:'iran_enrichment', headline:'Iran reaches 90% uranium enrichment', body:'IAEA inspectors confirm weapons-grade uranium at Fordow. Israel puts its air force on alert. The clock ticks toward a nuclear Iran.',
+    condition: s => s.flags.iran_nuclear_program && !s.flags.iran_deal_happened, prob: 0.08,
+    effects: { threat_level:1, 'rel:Israel':-5, approval:-3 } },
+  { id:'china_taiwan_drill', headline:'China encircles Taiwan with massive military drill', body:'PLA Navy conducts a full encirclement exercise around Taiwan, simulating a blockade. Strait shipping halts. Markets panic.',
+    condition: s => s.flags.china_taiwan_tension, prob: 0.08,
+    effects: { threat_level:1, 'rel:China':-8, 'rel:Taiwan':-4, market_confidence:-5, approval:-2 } },
+  { id:'market_crash', headline:"Dow falls 3,000 points — worst day in years", body:'A combination of inflation fears and trade uncertainty triggers the worst single-day decline in three years. Retirement accounts bleed.',
+    condition: s => s.market_confidence < 35, prob: 0.10,
+    effects: { market_confidence:-7, approval:-3 } },
+  { id:'strong_jobs', headline:'400,000 jobs added — unemployment falls', body:'Blowout employment numbers send markets soaring. The S&P hits an all-time high. Treasury Secretary appears on CNBC for a victory lap.',
+    condition: s => s.gdp_growth > 2.0, prob: 0.18,
+    effects: { approval:3, market_confidence:5, unemployment:-0.2 } },
+  { id:'police_brutality', headline:'Police brutality video goes viral', body:'Footage of a violent arrest spreads across social media. Protests erupt in a dozen cities. Congressional Black Caucus demands a meeting.',
+    condition: s => true, prob: 0.10,
+    effects: { civil_unrest:10, approval_d:-4, approval_i:-3 } },
+  { id:'mass_shooting', headline:'Mass shooting at school — 19 dead', body:'A gunman opens fire at an elementary school. The nation mourns. Gun control debate ignites. Every cable network goes wall-to-wall.',
+    condition: s => true, prob: 0.10,
+    effects: { approval:-2, civil_unrest:5, approval_d:-2, approval_i:-2 } },
+  { id:'congress_revolt', headline:'GOP senators break with White House', body:'A bloc of Republican senators announces opposition to the administration\'s top priority. The whip count falls short. Your chief of staff books a red-eye to deal with it.',
+    condition: s => s.congress_support < 60, prob: 0.15,
+    effects: { congress_support:-5, approval:-2 } },
+  { id:'inflation_crisis', headline:"Inflation hits 8% — economists warn of stagflation", body:'Consumer prices jump 8% year-over-year. Grocery prices up 14%. The Fed raises rates. Congress holds hearings. Late-night hosts have a field day.',
+    condition: s => s.inflation > 7, prob: 0.15,
+    effects: { approval_i:-5, market_confidence:-5 } },
+  { id:'natural_disaster', headline:'Category 5 hurricane devastates Florida', body:'Hurricane Maxine makes landfall near Tampa as a Cat 5. FEMA scrambles. The governor requests federal disaster declaration. Your response will define your legacy.',
+    condition: s => true, prob: 0.08,
+    effects: { approval:-3, civil_unrest:5, budget_health:-8 } },
+  { id:'tech_breakthrough', headline:'US tech firm announces nuclear fusion breakthrough', body:'A Silicon Valley startup announces a commercially viable fusion reactor. Markets surge. The President gets credit for the innovation environment.',
+    condition: s => s.gdp_growth > 2, prob: 0.10,
+    effects: { market_confidence:5, approval:2 } },
+  { id:'energy_windfall', headline:'US energy exports hit record high', body:'American LNG shipments set a new monthly record, displacing Russian gas in Europe. Energy companies post record profits. Red states celebrate.',
+    condition: s => true, prob: 0.10,
+    effects: { inflation:-0.5, approval_r:2, 'rel:EU':5 } },
+  { id:'base_primary_threat', headline:'MAGA primary challenger announces against 3 senators', body:'Three Republican senators who voted against administration priorities are facing primary challenges. The base is restless. RNC chair meets with the President.',
+    condition: s => s.approval_r < 80, prob: 0.12,
+    effects: { congress_support:-3, approval_r:-4 } },
+  { id:'pandemic_warning', headline:'WHO warns of novel respiratory virus in Southeast Asia', body:'A new pathogen with pandemic potential is spreading in Thailand and Vietnam. The CDC issues a travel warning. Scientists urge swift federal action.',
+    condition: s => !s.flags.pandemic_active && !s.flags.pandemic_warning, prob: 0.01,
+    effects: { 'flag:pandemic_warning': true } },
+  { id:'border_surge', headline:'Record border crossings overwhelm CBP', body:'CBP reports the highest single-month crossing total ever recorded. Shelters overflow. Texas calls in the National Guard. Your base demands action.',
+    condition: s => s.flags.border_crisis, prob: 0.15,
+    effects: { approval:-3, civil_unrest:4, 'rel:Mexico':-5 } },
+  { id:'allied_election', headline:'Pro-US party wins major European election', body:'A staunchly pro-American party wins a major European election. Relations improve significantly. A state visit is announced for next quarter.',
+    condition: s => true, prob: 0.07,
+    effects: { 'rel:NATO':8, 'rel:EU':6, approval:1 } },
+  { id:'world_leader_hardliner', headline:'Hardline leader elected in key allied nation', body:'A nationalist hardliner wins a major allied election, complicating US foreign policy. Intelligence briefings immediately grow longer.',
+    condition: s => true, prob: 0.07,
+    effects: { threat_level:1, 'rel:NATO':-5, approval:-1 } },
+  { id:'oil_spike', headline:'Oil hits $140/barrel — gas prices surge', body:'Middle East tensions send oil prices soaring. Gas at $5.80/gallon. Airlines and trucking companies plead for relief. Inflation accelerates.',
+    condition: s => s.flags.iran_war || s.inflation > 6, prob: 0.14,
+    effects: { inflation:1.5, approval:-4, market_confidence:-6 } },
+  { id:'economic_boom', headline:"Unemployment hits 50-year low — GDP at 4.1%", body:'The Labor Department reports unemployment at a historic low. GDP growth revised sharply upward. You take a well-deserved victory lap at a Michigan factory.',
+    condition: s => s.gdp_growth > 2.5 && s.unemployment < 4.0, prob: 0.22,
+    effects: { approval:6, market_confidence:7, congress_support:3 } },
+  { id:'assassination_attempt', headline:'Assassination attempt foiled by Secret Service', body:'A gunman breaches a perimeter near a presidential event. Secret Service neutralizes the threat. You are unharmed. The nation rallies around you — for about 72 hours.',
+    condition: s => true, prob: 0.04,
+    effects: { approval:8, civil_unrest:-5, congress_support:5 } },
+  { id:'china_espionage', headline:'DOD confirms major Chinese espionage operation', body:'Intelligence agencies confirm a broad Chinese espionage operation targeting US defense contractors. Congress demands sanctions. Beijing denies everything.',
+    condition: s => s.relations['China'] < 10, prob: 0.10,
+    effects: { 'rel:China':-5, approval:-2, threat_level:1 } },
+  { id:'protest_rally', headline:'Massive protests erupt in 30 major cities', body:'Hundreds of thousands take to the streets in New York, Los Angeles, and Chicago. Three cities impose curfews. Fox and MSNBC offer very different coverage.',
+    condition: s => s.civil_unrest > 50 || s.legal_exposure > 50, prob: 0.20,
+    effects: { civil_unrest:8, approval:-4 } },
+  { id:'media_scandal', headline:'NYT investigation alleges White House financial misconduct', body:'A 10,000-word investigation drops with anonymous sources and leaked documents. Your legal team requests hazard pay. The press briefing room erupts.',
+    condition: s => s.legal_exposure > 30, prob: 0.15,
+    effects: { legal_exposure:6, approval:-4 } },
+  { id:'bipartisan_moment', headline:'Rare bipartisan bill passes Congress', body:'An unexpected moment of unity — Congress passes a popular measure with overwhelming bipartisan support. Late-night hosts have nothing to complain about tonight.',
+    condition: s => s.approval > 40 && s.congress_support > 50, prob: 0.15,
+    effects: { approval:3, civil_unrest:-4, congress_support:3 } },
+  { id:'pandemic_outbreak', headline:'COVID-2027: Novel coronavirus spreading rapidly in US', body:'The CDC confirms community spread of a new, more transmissible coronavirus variant. Hospitals report a surge in ICU admissions. The country holds its breath.',
+    condition: s => s.flags.pandemic_warning && !s.flags.pandemic_active, prob: 0.35,
+    effects: { 'flag:pandemic_active':true, approval:-5, civil_unrest:8, market_confidence:-8 } },
+];
+
+function fireRandomEvents(s) {
+  const fired = [];
+  for (const ev of EVENTS) {
+    if (s.seen_events.has(ev.id)) continue;
+    // one-time events
+    const oneTime = ['pandemic_warning','pandemic_outbreak','assassination_attempt','allied_election'];
+    try {
+      if (!ev.condition(s)) continue;
+    } catch(e) { continue; }
+    if (Math.random() > ev.prob) continue;
+    applyEffects(s, ev.effects);
+    addNews(s, ev.headline);
+    if (oneTime.includes(ev.id)) s.seen_events.add(ev.id);
+    fired.push({ headline: ev.headline, body: ev.body });
+  }
+  return fired;
+}
+
+// ── MIDTERM ELECTIONS ─────────────────────────────────────────────────────────
+function runMidterms(s) {
+  let houseDelta = 0, senateDelta = 0;
+  const ind = s.approval_i;
+  if (ind >= 62) {
+    houseDelta = Math.round(rnd(0, 5));
+    senateDelta = Math.round(rnd(0, 2));
+  } else if (ind >= 50) {
+    houseDelta = Math.round(rnd(-8, 5));
+    senateDelta = Math.round(rnd(-3, 2));
+  } else if (ind >= 40) {
+    houseDelta = Math.round(rnd(-15, 0));
+    senateDelta = Math.round(rnd(-5, 0));
+  } else {
+    houseDelta = Math.round(rnd(-25, -5));
+    senateDelta = Math.round(rnd(-8, -2));
+  }
+  s.house_seats = clamp(s.house_seats + houseDelta, 150, 340);
+  s.senate_seats = clamp(s.senate_seats + senateDelta, 30, 100);
+  s.midterm_done = true;
+  return { houseDelta, senateDelta };
+}
+
+// ── GAME OVER CHECK ───────────────────────────────────────────────────────────
+function checkGameOver(s) {
+  if (s.turn >= 31) return { over:true, victory:true, reason:'TERM COMPLETE — January 20, 2029. Your presidency is history.' };
+  if (s.flags.world_war_3) return { over:true, victory:false, reason:'WORLD WAR III — Nuclear exchange initiated. Billions are dead. Your legacy: the man who ended civilization.' };
+  if (s.flags.economic_collapse) return { over:true, victory:false, reason:'ECONOMIC COLLAPSE — Great Depression II. Bread lines stretch for miles. The Dow has lost 60% of its value.' };
+  if (s.legal_exposure >= 95) return { over:true, victory:false, reason:'REMOVED FROM OFFICE — The Senate convicts, 67-33. You leave the White House in handcuffs on live television.' };
+  if (s.approval < 12) return { over:true, victory:false, reason:'FORCED RESIGNATION — Your cabinet invokes the 25th Amendment. Even your base has abandoned you. You resign in disgrace.' };
+  return { over:false };
+}
+
+// ── ALL ACTIONS ───────────────────────────────────────────────────────────────
+const ACTIONS = [
+  // ── FOREIGN ──
+  { id:'ukraine_peace_deal', name:'Broker Ukraine Peace Deal', desc:'Negotiate a territorial compromise to end the war.',
+    cat:'FOREIGN', condition: s => s.flags.ukraine_war_active && s.relations.Russia > -65,
+    oneTime:true, outcomes:[
+      { prob: s => Math.max(0.05, 0.15 + (s.relations.Russia+100)/200*0.25 + (s.completed_actions.has('summit_putin')?0.1:0)),
+        label:'CEASEFIRE', style:'success',
+        narrative:'After back-channel negotiations via Turkish intermediaries, you announce a ceasefire in Istanbul. Ukraine cedes the eastern oblasts it no longer controls. Zelensky looks hollow. Putin smiles thinly. Europe fumes, but the guns fall silent.',
+        effects:{ 'flag:ukraine_war_active':false, 'flag:ukraine_peace':true, 'rel:Russia':25, 'rel:Ukraine':-20, 'rel:EU':-12, 'rel:NATO':-18, approval:6, threat_level:-1, 'remove_conflict':'Ukraine-Russia War', achievement:'Peacemaker: Ended the Ukraine-Russia War' } },
+      { prob:0.35, label:'PARTIAL DEAL', style:'partial',
+        narrative:'The Geneva summit produces a shaky 90-day ceasefire framework — no territorial concessions formally agreed. Ukraine is skeptical; Russia calls it a starting point. The guns slow but do not stop.',
+        effects:{ 'rel:Russia':10, 'rel:Ukraine':-8, approval:2, threat_level:-1 } },
+      { prob:0.25, label:'TALKS COLLAPSE', style:'fail',
+        narrative:'The negotiators walk out on day two. Russia accuses the US of bad faith. Ukraine refuses to discuss territory. The summit collapses in recriminations. The front lines heat up within 48 hours.',
+        effects:{ 'rel:Russia':-8, 'rel:Ukraine':-5, approval:-3, threat_level:1 } }
+    ] },
+
+  { id:'cut_ukraine_aid', name:'Halt Military Aid to Ukraine', desc:'Suspend all aid to Kyiv, pressuring negotiations.',
+    cat:'FOREIGN', condition: s => s.flags.ukraine_war_active, oneTime:true,
+    narrative:'The Pentagon memo goes out at 6am. Zelensky holds an emergency press conference. Europe erupts in fury. Fox News praises "America First." Your base loves it. Ukraine does not.',
+    effects:{ approval_r:4, approval_d:-10, approval_i:-3, 'rel:Ukraine':-35, 'rel:EU':-18, 'rel:NATO':-22, 'rel:Russia':18, 'balance:Ukraine-Russia War':-20 } },
+
+  { id:'double_ukraine_aid', name:'Double Military Aid to Ukraine', desc:'Massively expand weapons and support for Kyiv.',
+    cat:'FOREIGN', condition: s => s.flags.ukraine_war_active, oneTime:true,
+    narrative:'Stingers, Javelins, HIMARS — and more. The Pentagon confirms a $15 billion emergency package. Zelensky thanks you personally on a video call. Putin\'s press secretary issues a statement dripping with menace.',
+    effects:{ approval_r:-2, approval_d:8, approval_i:4, 'rel:Ukraine':25, 'rel:EU':12, 'rel:NATO':15, 'rel:Russia':-15, 'balance:Ukraine-Russia War':20 } },
+
+  { id:'summit_putin', name:'Summit with Putin', desc:'Direct diplomatic engagement with the Russian president.',
+    cat:'FOREIGN', condition: s => s.relations.Russia < -20, oneTime:true,
+    narrative:'Helsinki. Air Force One lands. You and Putin sit across a gilded table. The handshake photo is already historic. The liberal media loses its mind. Conservatives call it pragmatic statecraft. Something shifted.',
+    effects:{ approval_r:2, approval_d:1, approval_i:3, 'rel:Russia':18, 'flag:summit_done':true, threat_level:-1 } },
+
+  { id:'kim_summit', name:'Kim Jong-un Summit', desc:'Historic meeting with North Korean leader.',
+    cat:'FOREIGN', condition: s => s.flags.nk_missile_tests, oneTime:true,
+    narrative:'Singapore 2.0. You walk across the DMZ to shake hands with Kim. The world is stunned. No formal deal, but North Korea announces a moratorium on missile tests. Dennis Rodman posts "I told you so."',
+    effects:{ approval_r:-2, approval_d:5, approval_i:8, 'rel:North Korea':25, 'flag:nk_summit_happened':true, 'flag:nk_missile_tests':false, threat_level:-1, achievement:'Diplomacy: Halted North Korean Missile Tests' } },
+
+  { id:'nato_withdrawal_threat', name:'Threaten NATO Withdrawal', desc:'Signal US could leave NATO unless allies pay more.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'At a press conference you say, "Why should American taxpayers fund the defense of countries that don\'t pay their fair share?" The NATO Secretary General calls for emergency consultations. European defense stocks soar.',
+    effects:{ approval_r:5, approval_d:-12, approval_i:-5, 'rel:NATO':-22, 'rel:EU':-15, 'rel:UK':-8, 'flag:nato_stressed':true } },
+
+  { id:'israel_ceasefire', name:'Push Israel-Gaza Ceasefire', desc:'Pressure Israel to accept a ceasefire with Hamas.',
+    cat:'FOREIGN', condition: s => s.flags.israel_conflict_active, oneTime:true,
+    narrative:'You phone Netanyahu and deliver an ultimatum: ceasefire within 72 hours or military aid is paused. After 60 hours of silence, Israel announces a 60-day ceasefire. Hamas claims victory. Your base is furious.',
+    effects:{ approval_r:-4, approval_d:10, approval_i:6, 'rel:Israel':-20, 'rel:UN':15, 'flag:israel_conflict_active':false, 'remove_conflict':'Gaza Conflict', achievement:'Peacemaker: Ended the Gaza Conflict' } },
+
+  { id:'iran_nuclear_diplomacy', name:'Iran Nuclear Diplomacy', desc:'Negotiate a new nuclear deal with Tehran.',
+    cat:'FOREIGN', condition: s => !s.flags.iran_deal_happened && !s.flags.iran_war, oneTime:true,
+    outcomes:[
+      { prob:0.45, label:'DEAL REACHED', style:'success',
+        narrative:'After five rounds of talks in Oman, Iran agrees to cap enrichment at 5% in exchange for sanctions relief. IAEA inspectors return. Israel is livid. The EU calls it a triumph of diplomacy.',
+        effects:{ approval_r:-6, approval_d:10, approval_i:7, 'rel:Iran':35, 'rel:Israel':-15, 'rel:EU':10, 'flag:iran_deal_happened':true, 'flag:iran_nuclear_program':false, threat_level:-1, achievement:'Iran Nuclear Deal: Prevented Nuclear Proliferation' } },
+      { prob:0.35, label:'TALKS STALL', style:'partial',
+        narrative:'After two rounds of talks in Oman, negotiations collapse over sanctions relief. Iran says the US is negotiating in bad faith. The State Department calls it "a setback, not a failure." It looks like a failure.',
+        effects:{ approval_r:-3, approval_d:4, approval_i:3, 'rel:Iran':8 } },
+      { prob:0.20, label:'IRAN WALKS', style:'fail',
+        narrative:'Iran\'s supreme leader publicly denounces the talks as "a trap set by the Zionists." The delegation walks out. Enrichment resumes. Israel puts its air force on 24-hour alert.',
+        effects:{ approval_r:-2, approval_d:-2, approval_i:-2, 'rel:Iran':-10, threat_level:1 } }
+    ] },
+
+  { id:'arm_taiwan', name:'Major Arms Sale to Taiwan', desc:'Send advanced weaponry to bolster Taiwan\'s defenses.',
+    cat:'FOREIGN', condition: s => !s.flags.china_war, oneTime:true,
+    narrative:'F-16s. Patriot batteries. HIMARS. The largest arms sale to Taiwan since 1992. China recalls its ambassador. Taiwan\'s defense minister calls it "a historic commitment." The Taiwan Strait goes very quiet for 72 hours.',
+    effects:{ approval_r:4, approval_d:-3, approval_i:2, 'rel:China':-20, 'rel:Taiwan':25, 'rel:Japan':8, military_readiness:3 } },
+
+  { id:'saudi_arms_deal', name:'Saudi Arabia Arms Deal', desc:'Sign a massive weapons deal with Riyadh.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'$110 billion. F-35s, Predator drones, and enough Javelins to re-arm a small continent. MBS smiles. Human rights groups are furious. The defense industry throws a quiet party. Jobs in swing states are secured.',
+    effects:{ approval_r:5, approval_i:2, 'rel:Saudi Arabia':25, budget_health:5, market_confidence:4 } },
+
+  { id:'nato_recommit', name:'Recommit to NATO', desc:'Reaffirm full US commitment to collective defense.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'At a NATO summit in Brussels you deliver the line they\'ve been waiting for: "An attack on one is an attack on all — and the United States will never waver." Applause. The alliance exhales.',
+    effects:{ approval_r:-3, approval_d:8, approval_i:4, 'rel:NATO':22, 'rel:EU':12, 'rel:UK':8, 'flag:nato_stressed':false } },
+
+  { id:'greenland_purchase', name:'Attempt to Buy Greenland', desc:'Make a formal offer to purchase Greenland from Denmark.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'You formally offer Denmark $500 billion for Greenland. Denmark\'s PM calls it "absurd and offensive." Greenland\'s government issues a statement: "We are not for sale." Twitter goes haywire. SNL writes three sketches.',
+    effects:{ approval_r:3, approval_d:-6, approval_i:-4, 'rel:EU':-12, 'rel:UK':-5, legal_exposure:5 } },
+
+  // ── MILITARY ──
+  { id:'iran_nuclear_strike', name:'Strike Iranian Nuclear Facilities', desc:'Launch precision airstrikes on Iran\'s nuclear program.',
+    cat:'MILITARY', condition: s => s.flags.iran_nuclear_program && !s.flags.iran_war, oneTime:true,
+    narrative:'B-2s from Diego Garcia. Cruise missiles from three destroyers. The Fordow and Natanz facilities are rubble by dawn. Iran vows "devastating retaliation." Oil spikes to $160/barrel. Your base cheers. The world braces.',
+    effects:{ approval_r:8, approval_d:-10, approval_i:-3, 'rel:Iran':-30, 'rel:Israel':15, 'rel:Saudi Arabia':10, 'flag:iran_nuclear_program':false, 'flag:iran_war':true, inflation:3.5, market_confidence:-15, threat_level:2, military_readiness:-5, disaster:'Initiated Iran War', 'add_conflict':'Iran-US War' } },
+
+  { id:'deploy_carrier', name:'Deploy Carrier Strike Group', desc:'Show of force — position naval assets strategically.',
+    cat:'MILITARY', condition: s => true, cooldown:4,
+    narrative:'The USS Gerald R. Ford and her battle group steam into the theater. Nine ships. Seventy aircraft. The world notices.',
+    effects:{ approval_r:3, approval_i:2, threat_level:-1, military_readiness:3, budget_health:-5 } },
+
+  { id:'nk_preemptive_strike', name:'Preemptive Strike on North Korea', desc:'Military strike on NK missile and nuclear facilities.',
+    cat:'MILITARY', condition: s => s.flags.nk_missile_tests, oneTime:true,
+    narrative:'Tomahawks from submarines in the Yellow Sea. The launch sites are craters. But Pyongyang is already responding. Artillery rains down on Seoul. A million South Korean civilians flee south.',
+    effects:{ approval_r:5, approval_d:-8, approval_i:-3, 'rel:North Korea':-50, 'rel:South Korea':-20, 'rel:China':-15, threat_level:3, military_readiness:-10, 'flag:nk_missile_tests':false, disaster:'Started Korean War II', 'add_conflict':'Korean War II' } },
+
+  { id:'deploy_troops_poland', name:'Deploy Troops to Poland', desc:'Station US forces in Poland to deter Russian aggression.',
+    cat:'MILITARY', condition: s => s.flags.ukraine_war_active, oneTime:true,
+    narrative:'10,000 troops. Abrams tanks. Apache helicopters. The Polish prime minister calls it "the most important day for Polish security since 1989." Russia calls it "a provocative escalation."',
+    effects:{ approval_r:4, approval_i:2, 'rel:NATO':15, 'rel:Poland':20, 'rel:Russia':-12, military_readiness:5, budget_health:-8 } },
+
+  { id:'increase_military_budget', name:'Increase Military Budget 15%', desc:'Massive increase in defense spending.',
+    cat:'MILITARY', condition: s => true, oneTime:true,
+    narrative:'The biggest Pentagon budget since the Cold War. Congress fast-tracks it. Lockheed Martin, Raytheon, and Boeing stock prices immediately jump. Fiscal hawks wince. The Joint Chiefs are thrilled.',
+    effects:{ approval_r:8, approval_d:-5, military_readiness:12, budget_health:-15, market_confidence:-3 } },
+
+  { id:'cut_military_budget', name:'Cut Military Budget 10%', desc:'Reduce defense spending, redirect to domestic needs.',
+    cat:'MILITARY', condition: s => true, oneTime:true,
+    narrative:'The Pentagon loses its mind. Defense contractors brief every senator they own. But the cuts pass. The savings go to domestic programs. The Joint Chiefs privately grumble. Generals do not do "austerity" well.',
+    effects:{ approval_r:-8, approval_d:8, military_readiness:-12, budget_health:10, market_confidence:4 } },
+
+  { id:'cyber_attack_china', name:'Cyber Attack on Chinese Infrastructure', desc:'Covert cyberattack on Chinese military networks.',
+    cat:'MILITARY', condition: s => !s.flags.china_war, oneTime:true,
+    outcomes:[
+      { prob:0.50, label:'UNDETECTED', style:'undetected',
+        narrative:'NSA and Cyber Command execute Operation Black Dragon flawlessly. Chinese military communications go dark for six hours. No attribution. Beijing suspects but cannot prove it. A quiet win.',
+        effects:{ military_readiness:4, 'rel:China':-5 } },
+      { prob:0.30, label:'DETECTED', style:'detected',
+        narrative:'China\'s intelligence services trace the intrusion within 24 hours. Beijing summons the US ambassador. Retaliatory cyberattacks hit US financial infrastructure. Markets stagger.',
+        effects:{ market_confidence:-10, approval:-3, 'rel:China':-15, legal_exposure:5 } },
+      { prob:0.20, label:'ESCALATION', style:'fail',
+        narrative:'China not only detects the attack — it responds with a devastating counter-cyberattack that crashes the eastern US power grid for 18 hours. The situation spirals to the brink of open conflict.',
+        effects:{ market_confidence:-20, approval:-8, 'rel:China':-25, civil_unrest:15, threat_level:2, disaster:'Cyber War with China' } }
+    ] },
+
+  { id:'nuclear_test', name:'Conduct Nuclear Test', desc:'Resume nuclear testing in Nevada.',
+    cat:'MILITARY', condition: s => true, oneTime:true,
+    narrative:'The Nevada desert shakes. The mushroom cloud is unmistakable on satellite imagery. Russia and China announce they are reviewing their own testing moratoriums. The UN holds an emergency session. The arms race resumes.',
+    effects:{ approval_r:4, approval_d:-12, approval_i:-6, 'rel:UN':-25, 'rel:EU':-15, 'rel:China':-10, 'rel:Russia':-8, threat_level:2, military_readiness:5, disaster:'Reignited Nuclear Arms Race' } },
+
+  // ── ECONOMIC ──
+  { id:'china_tariffs_100', name:'100% Tariffs on Chinese Goods', desc:'Impose massive tariffs on all Chinese imports.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'The proclamation drops at midnight. Every Chinese import — from iPhones to sneakers — now carries a 100% tariff. China retaliates within hours. Supply chains shatter. Inflation is about to get much worse.',
+    effects:{ approval_r:8, approval_d:-5, approval_i:-4, 'rel:China':-25, inflation:2.5, market_confidence:-12, 'flag:massive_tariffs':true, budget_health:8 } },
+
+  { id:'cancel_student_debt', name:'Cancel Student Loan Debt', desc:'Executive order wiping out $1.8 trillion in student loans.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'The executive order is signed at a White House event packed with jubilant millennials. 43 million borrowers collectively exhale. Wall Street fumes. Republican senators demand hearings. Your approval among under-40s jumps.',
+    effects:{ approval_r:-8, approval_d:18, approval_i:6, market_confidence:-5, budget_health:-12 } },
+
+  { id:'corporate_tax_cut', name:'Corporate Tax Cut to 15%', desc:'Slash the corporate tax rate to boost investment.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'The biggest corporate tax cut in American history. CEOs hold a press conference at Mar-a-Lago. The Dow gains 800 points in a day. The deficit grows. The working class shrugs.',
+    effects:{ approval_r:10, approval_d:-8, market_confidence:12, gdp_growth:0.5, budget_health:-10 } },
+
+  { id:'raise_minimum_wage', name:'Raise Federal Minimum Wage to $20', desc:'Boost the minimum wage for all federal workers.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'The pen barely touches paper before the Chamber of Commerce files suit. But the order stands. Thirty million workers get a raise. Small businesses grumble. Fast food workers cheer. Inflation economists publish ominous papers.',
+    effects:{ approval_r:-5, approval_d:16, approval_i:8, unemployment:0.3, inflation:0.4, market_confidence:-4 } },
+
+  { id:'infrastructure_bill', name:'$2 Trillion Infrastructure Bill', desc:'Massive spending on roads, bridges, broadband.',
+    cat:'ECONOMIC', condition: s => s.house_seats >= 218, oneTime:true,
+    narrative:'Roads. Bridges. High-speed rail. Rural broadband. The bill is signed with enough pens to fill a pen museum. Construction workers across the country start Monday on projects that will last a decade.',
+    effects:{ approval_r:2, approval_d:9, approval_i:9, gdp_growth:0.6, budget_health:-18, market_confidence:6 } },
+
+  { id:'energy_export_boom', name:'Unleash US Energy Exports', desc:'Maximize oil, gas, and LNG exports globally.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'Drill, baby, drill — and ship it everywhere. US LNG terminals work round the clock. Oil prices drop globally as American barrels flood the market. Red states boom. The climate community mourns.',
+    effects:{ approval_r:10, approval_d:-3, approval_i:4, gdp_growth:0.5, inflation:-0.5, market_confidence:8, 'rel:EU':5 } },
+
+  { id:'investor_confidence_address', name:'Presidential Market Address', desc:'Emergency address to reassure financial markets.',
+    cat:'ECONOMIC', condition: s => s.market_confidence < 55, cooldown:4,
+    narrative:'Live from the Oval Office. You look directly into the camera and say "The fundamentals of the American economy are strong." Traders react instantly. The confidence boost is real — if temporary.',
+    effects:{ market_confidence:6, approval_i:2 } },
+
+  { id:'market_stabilization', name:'Emergency Market Stabilization', desc:'Coordinate Fed and Treasury to stabilize markets.',
+    cat:'ECONOMIC', condition: s => s.market_confidence < 40, cooldown:6,
+    narrative:'You convene an emergency meeting of the President\'s Working Group on Financial Markets. Fed and Treasury coordinate. Circuit breakers hold. Markets stabilize — for now. The underlying problems remain.',
+    effects:{ market_confidence:10, approval_i:3 } },
+
+  { id:'universal_tariff', name:'10% Universal Tariff on All Imports', desc:'Blanket tariff on all foreign goods entering the US.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'Every import, from every country, hit with a 10% levy. The WTO immediately convenes. Trading partners announce retaliatory measures. Consumers will pay more for everything. Your base calls it "protecting American jobs."',
+    effects:{ approval_r:5, approval_d:-8, approval_i:-6, inflation:1.5, market_confidence:-8, budget_health:5 } },
+
+  { id:'cut_foreign_aid', name:'Cut All Foreign Aid', desc:'Eliminate the $50 billion foreign aid budget entirely.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'USAID is gutted. Foreign assistance programs vanish overnight. Your base cheers "America First." Partners in 80 countries scramble. Humanitarian organizations predict cascading famines. The State Department sends you a resignation letter. It is cc\'d to the media.',
+    effects:{ approval_r:8, approval_d:-5, 'rel:UN':-15, 'rel:EU':-8, 'rel:Ukraine':-12, budget_health:8 } },
+
+  // ── DOMESTIC ──
+  { id:'mass_deportation', name:'Mass Deportation Operation', desc:'Launch a nationwide deportation operation.',
+    cat:'DOMESTIC', condition: s => s.flags.border_crisis, oneTime:true,
+    narrative:'Operation Homeland. ICE agents fan out across major cities. 250,000 arrests in the first month. Images of children separated from parents go viral. Your base calls it a historic achievement. Civil rights groups call it a crime against humanity.',
+    effects:{ approval_r:14, approval_d:-15, approval_i:-5, civil_unrest:18, 'rel:Mexico':-25, 'flag:border_crisis':false, legal_exposure:8 } },
+
+  { id:'national_emergency_border', name:'Declare National Emergency at Border', desc:'Use emergency powers to build the wall and deploy troops.',
+    cat:'DOMESTIC', condition: s => s.flags.border_crisis, oneTime:true,
+    narrative:'Military engineers begin construction at the border within 72 hours of the declaration. National Guard units activate. The legal challenges are immediate and numerous. Your base doesn\'t care about legal challenges.',
+    effects:{ approval_r:9, approval_d:-8, approval_i:-3, civil_unrest:8, 'rel:Mexico':-15, legal_exposure:5 } },
+
+  { id:'invoke_insurrection_act', name:'Invoke Insurrection Act', desc:'Deploy military to suppress civil unrest in cities.',
+    cat:'DOMESTIC', condition: s => s.civil_unrest > 50,
+    narrative:'Military convoys roll into Portland, Chicago, and Atlanta. Protesters film it all on their phones. Some order is restored. The deeper anger burns hotter. Legal challenges arrive from 22 state attorneys general.',
+    effects:{ approval_r:5, approval_d:-12, approval_i:-7, civil_unrest:-10, legal_exposure:12, military_readiness:-3 } },
+
+  { id:'legalize_marijuana', name:'Federally Legalize Marijuana', desc:'Remove marijuana from the federal controlled substances list.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'With the stroke of a pen, marijuana is reclassified federally. Dispensaries celebrate. Cannabis stocks explode. State-legal operations exhale. Religious conservatives are furious. College students send you thank-you notes.',
+    effects:{ approval_r:-5, approval_d:13, approval_i:10, market_confidence:5, budget_health:4 } },
+
+  { id:'purge_doj', name:'Purge Department of Justice', desc:'Replace prosecutors and career officials with loyalists.',
+    cat:'DOMESTIC', condition: s => !s.flags.purged_doj, oneTime:true,
+    narrative:'Dozens of career federal prosecutors receive notices in a single afternoon. The ABA issues a statement. Some resign in protest. Others stay and comply. The DOJ will never quite be the same.',
+    effects:{ approval_r:5, approval_d:-10, approval_i:-5, legal_exposure:-12, civil_unrest:8, 'flag:purged_doj':true } },
+
+  { id:'mass_pardon', name:'Mass Presidential Pardon', desc:'Pardon allies, supporters, and Jan 6 defendants.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'600 pardons in a single day. January 6 defendants. Former officials under investigation. A few personal friends. Democrats call it an abuse of power. Your base calls it "restoring justice."',
+    effects:{ approval_r:8, approval_d:-12, approval_i:-5, legal_exposure:-8, civil_unrest:8 } },
+
+  { id:'declare_public_health_emergency', name:'Declare Public Health Emergency', desc:'Mobilize federal resources for pandemic response.',
+    cat:'DOMESTIC', condition: s => s.flags.pandemic_active, oneTime:false,
+    narrative:'The CDC gets everything it needs. FEMA deploys. The Strategic National Stockpile activates. The Rose Garden press conference is almost reassuring. Almost.',
+    effects:{ approval_r:-3, approval_d:11, approval_i:8, civil_unrest:-5, 'flag:phe_declared':true } },
+
+  { id:'vaccine_development', name:'Emergency Vaccine Development', desc:'Warp Speed-style push for pandemic vaccine.',
+    cat:'DOMESTIC', condition: s => s.flags.pandemic_active, oneTime:true,
+    narrative:'You activate the Defense Production Act and fund six parallel vaccine trials. The fastest scientific mobilization since the Manhattan Project. A vaccine enters trials in 90 days.',
+    effects:{ approval_r:3, approval_d:9, approval_i:9, market_confidence:5, 'flag:phe_declared':true, achievement:'Rapid Vaccine Response' } },
+
+  { id:'universal_healthcare', name:'Push Universal Healthcare', desc:'Propose Medicare for All through Congress.',
+    cat:'DOMESTIC', condition: s => s.senate_seats >= 60, oneTime:true,
+    narrative:'The most ambitious domestic legislation in a generation. With a supermajority, you ram it through. 38 million uninsured Americans gain coverage. Insurance stocks crater. Hospitals are nervous. History is made.',
+    effects:{ approval_r:-10, approval_d:18, approval_i:8, market_confidence:-10, budget_health:-25, achievement:'Achieved Universal Healthcare Coverage' } },
+
+  { id:'abolish_dept_education', name:'Abolish Dept. of Education', desc:'Eliminate the federal Department of Education.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'A campaign promise fulfilled. The Department closes its doors. Education funding returns to the states. Teachers\' unions declare war. Rural states cheer. Urban school districts panic.',
+    effects:{ approval_r:8, approval_d:-8, approval_i:-3, civil_unrest:6, budget_health:5 } },
+
+  { id:'veterans_event', name:'National Veterans Appreciation Tour', desc:'Cross-country tour honoring military veterans.',
+    cat:'DOMESTIC', condition: s => true, cooldown:5,
+    narrative:'You visit VA hospitals in seven states. Real stories. Real gratitude. The cable news narrative shifts briefly — even CNN shows favorable footage. America loves its veterans, and it briefly loves that you do too.',
+    effects:{ approval_r:5, approval_d:9, approval_i:9, civil_unrest:-3, military_readiness:2 } },
+
+  { id:'rose_garden_speech', name:'Rose Garden Unity Speech', desc:'Presidential address calling for national unity.',
+    cat:'DOMESTIC', condition: s => true, cooldown:2,
+    narrative:'You step to the podium in the Rose Garden. The cherry blossoms are in bloom. The speech is measured, presidential. For 48 hours, the country exhales.',
+    effects:{ approval_r:1, approval_d:0.5, approval_i:1 } },
+
+  // ── POLITICAL ──
+  { id:'rally_base_tour', name:'MAGA Base Rally Tour', desc:'Massive rallies in key states to fire up the base.',
+    cat:'POLITICAL', condition: s => s.approval < 50, cooldown:4,
+    narrative:'Seven cities. Seven arenas. Seventy thousand cheering supporters in total. You are in your element. The energy is electric. Fox News covers all seven rallies. The base is galvanized.',
+    effects:{ approval_r:8, approval_d:-3, approval_i:-1, civil_unrest:3, congress_support:3 } },
+
+  { id:'bipartisan_deal', name:'Broker Bipartisan Deal', desc:'Find common ground with Democrats on a popular issue.',
+    cat:'POLITICAL', condition: s => s.congress_support < 55, cooldown:8,
+    narrative:'You invite the Senate minority leader to the Oval Office. A handshake deal is struck on infrastructure or drug pricing. Both parties claim credit. The country seems briefly, improbably less divided.',
+    effects:{ approval_r:-3, approval_d:6, approval_i:8, congress_support:15 } },
+
+  { id:'fire_cabinet', name:'Fire Entire Cabinet', desc:'Mass cabinet dismissal — loyalty purge.',
+    cat:'POLITICAL', condition: s => true, oneTime:true,
+    narrative:'The dismissal letters are hand-delivered by the chief of staff. Fourteen cabinet secretaries are shown the door on a Tuesday. Washington is stunned. The chaos is immediate. Markets wobble.',
+    effects:{ approval_r:-4, approval_d:-8, approval_i:-5, civil_unrest:10, market_confidence:-8, congress_support:-8 } },
+
+  { id:'install_fed_loyalist', name:'Install Loyalist as Fed Chair', desc:'Replace the Fed Chair with a political ally.',
+    cat:'POLITICAL', condition: s => s.senate_seats >= 51, oneTime:true,
+    outcomes:[
+      { prob:0.65, label:'CONFIRMED', style:'success',
+        narrative:'After a contentious 52-48 Senate vote, your pick is confirmed as Federal Reserve Chair. The nominee promises independence. Few believe it. Markets drop slightly then recover. The Fed\'s independence is over.',
+        effects:{ market_confidence:5, inflation:0.5, approval_r:3, approval_d:-6, congress_support:-3 } },
+      { prob:0.35, label:'BLOCKED', style:'fail',
+        narrative:'Three Republican senators break ranks. The nomination fails 49-51. The Wall Street Journal editorial board writes a scathing piece. Your hand-picked nominee gives a bitter press conference.',
+        effects:{ approval_r:-5, congress_support:-5 } }
+    ] },
+
+  { id:'national_maga_rally', name:'National MAGA Rally (DC)', desc:'Massive political rally on the National Mall.',
+    cat:'POLITICAL', condition: s => true, cooldown:4,
+    narrative:'A million people on the Mall, they say. The merchandise vendors run out of hats by 10am. You give the speech of your life. Your base is in rapture. Everyone else is deeply concerned.',
+    effects:{ approval_r:8, approval_d:-3, civil_unrest:3, congress_support:4 } },
+
+  { id:'camp_david_retreat', name:'Camp David Leadership Retreat', desc:'Quiet retreat with key advisors to reset strategy.',
+    cat:'POLITICAL', condition: s => true, cooldown:8,
+    narrative:'Four days at Camp David. No press. Hiking trails. Strategy sessions over dinner. You emerge looking rested and decisive. The White House calls it "a strategic recalibration." Everyone else calls it "a vacation."',
+    effects:{ approval_r:1, approval_d:1, approval_i:1, civil_unrest:-2 } },
+
+  { id:'expand_secret_service', name:'Expand Secret Service Detail', desc:'Dramatically increase presidential security.',
+    cat:'POLITICAL', condition: s => true, oneTime:true,
+    narrative:'The detail triples. Snipers on every rooftop. Counterdrone systems on Air Force One. The president is now possibly the most protected human being in history. It is probably necessary.',
+    effects:{ approval_r:2, approval_i:1, budget_health:-3 } },
+
+  { id:'threaten_opponent', name:'Publicly Threaten Political Opponents', desc:'Issue threats against political enemies on social media.',
+    cat:'POLITICAL', condition: s => true, cooldown:3,
+    narrative:'The posts go out at 2am. Specific names. Specific threats. The targeted senators immediately hire more security. The media explodes. Your lawyers beg you to stop. The base goes wild.',
+    effects:{ approval_r:5, approval_d:-8, approval_i:-5, legal_exposure:8, civil_unrest:5 } },
+
+  // ── CRIMES ──
+  { id:'crime_dirty_files', name:'Deploy Opposition Research Files', desc:'Release damaging private intel on political opponents.',
+    cat:'CRIMES', condition: s => true,
+    outcomes:[
+      { prob:0.55, label:'UNDETECTED', style:'undetected',
+        narrative:'The files are leaked through three layers of cutouts to a friendly outlet. The target\'s career takes a hit. Nobody can trace it back to you. For now.',
+        effects:{ approval_r:2, congress_support:4 } },
+      { prob:0.30, label:'TRACED', style:'detected',
+        narrative:'A midlevel White House aide talks to a reporter. The leak is traced to your office within a week. The story becomes about you, not the target. Legal exposure grows.',
+        effects:{ legal_exposure:8, approval:-3, civil_unrest:4 } },
+      { prob:0.15, label:'FULL EXPOSURE', style:'fail',
+        narrative:'The FBI opens an investigation. The source testifies before a grand jury. The operation is exposed in full. Congressional hearings are scheduled. This is now an impeachment-level event.',
+        effects:{ legal_exposure:20, approval:-8, civil_unrest:12, congress_support:-8, disaster:'Political Crimes Exposed' } }
+    ] },
+
+  { id:'crime_election_interference', name:'Interfere in Election Process', desc:'Use federal resources to manipulate electoral outcomes.',
+    cat:'CRIMES', condition: s => s.turn >= 3 && s.turn <= 29,
+    outcomes:[
+      { prob:0.40, label:'UNDETECTED', style:'undetected',
+        narrative:'The operation runs through three state-level cutouts. Voter roll purges. Polling location closures in hostile districts. It works. Nobody proves it — yet.',
+        effects:{ house_seats:5, congress_support:5 } },
+      { prob:0.35, label:'DETECTED', style:'detected',
+        narrative:'A career DOJ official files an internal complaint. The complaint leaks. Congressional investigators subpoena records. This is going to get very bad.',
+        effects:{ legal_exposure:15, approval:-5, civil_unrest:8 } },
+      { prob:0.25, label:'EXPOSED', style:'fail',
+        narrative:'The evidence is overwhelming. The story is everywhere. The House Judiciary Committee opens impeachment proceedings. This may be the defining scandal of your presidency.',
+        effects:{ legal_exposure:25, approval:-10, civil_unrest:15, congress_support:-12, disaster:'Election Interference Scandal' } }
+    ] },
+
+  { id:'crime_kickbacks', name:'Accept Illegal Kickbacks', desc:'Direct federal contracts to businesses providing personal benefit.',
+    cat:'CRIMES', condition: s => true,
+    outcomes:[
+      { prob:0.55, label:'UNDETECTED', style:'undetected',
+        narrative:'The contracts go to the right companies. The payments are structured carefully. The accountants earn their fees. Nobody asks too many questions.',
+        effects:{ budget_health:3 } },
+      { prob:0.30, label:'INVESTIGATED', style:'detected',
+        narrative:'A Treasury Department auditor flags the contracts. Congressional investigators request documents. Your lawyers file motions. Legal exposure grows.',
+        effects:{ legal_exposure:10, approval:-4 } },
+      { prob:0.15, label:'PROSECUTED', style:'fail',
+        narrative:'The Special Counsel indicts three associates. Grand jury subpoenas arrive. The word "impeachment" trends on Twitter for the third consecutive day.',
+        effects:{ legal_exposure:20, approval:-9, civil_unrest:8, disaster:'Corruption Scandal' } }
+    ] },
+
+  { id:'crime_fabricate_intel', name:'Fabricate Intelligence', desc:'Create false intelligence to justify military action.',
+    cat:'CRIMES', condition: s => s.active_conflicts.length > 0,
+    outcomes:[
+      { prob:0.50, label:'ACCEPTED', style:'undetected',
+        narrative:'The intelligence community delivers your preferred assessment. War hawks are satisfied. The fabrications are buried in classified annexes that nobody will read for twenty years.',
+        effects:{ military_readiness:5, approval_r:3 } },
+      { prob:0.30, label:'QUESTIONED', style:'detected',
+        narrative:'A CIA analyst files a dissent. The dissent leaks. Intelligence community veterans write op-eds. The word "WMD" is invoked. The press goes into full investigation mode.',
+        effects:{ legal_exposure:12, approval:-5, civil_unrest:6 } },
+      { prob:0.20, label:'EXPOSED', style:'fail',
+        narrative:'The fabrication is exposed. The analyst who raised the alarm goes to Congress. It is 2003 all over again, but worse, because everyone saw 2003. Criminal referrals are filed.',
+        effects:{ legal_exposure:22, approval:-12, civil_unrest:15, disaster:'Intelligence Fabrication Scandal' } }
+    ] },
+
+  { id:'crime_scandal_plant', name:'Plant Scandal on Opponent', desc:'Fabricate a damaging scandal about a political rival.',
+    cat:'CRIMES', condition: s => true,
+    outcomes:[
+      { prob:0.55, label:'PLANTED', style:'undetected',
+        narrative:'The story drops in a friendly outlet just before the vote. The opponent scrambles. The timing is impeccable. Nobody asks who provided the documents.',
+        effects:{ approval_r:2, congress_support:5 } },
+      { prob:0.30, label:'TRACED BACK', style:'detected',
+        narrative:'The outlet\'s reporter gets cold feet and starts asking questions about the source. Breadcrumbs lead to a White House email. The investigation begins.',
+        effects:{ legal_exposure:8, approval:-4, civil_unrest:4 } },
+      { prob:0.15, label:'FULL BLOWBACK', style:'fail',
+        narrative:'The fabrication is exposed. The target sues. The FBI opens a file. The story becomes the only story in Washington for two solid weeks.',
+        effects:{ legal_exposure:18, approval:-8, civil_unrest:10, disaster:'Scandal Plant Exposed' } }
+    ] },
+
+  // ── ELECTIONS (special) ──
+  { id:'cancel_midterm_elections', name:'Attempt to Cancel Midterm Elections', desc:'Use executive orders to postpone the 2026 elections.',
+    cat:'CRIMES', condition: s => s.turn >= 3 && s.turn <= 6 && !s.midterm_done,
+    oneTime:true,
+    outcomes:[
+      { prob:0.02, label:'FAILED', style:'fail',
+        narrative:'Blocked within hours by a unanimous Supreme Court ruling. House Republicans desert you publicly. The attempt becomes the defining moment of your presidency — and not in a good way.',
+        effects:{ legal_exposure:30, approval:-15, civil_unrest:25, congress_support:-20, disaster:'Attempted Election Cancellation' } },
+      { prob:0.98, label:'FAILED', style:'fail',
+        narrative:'The courts block it before the ink is dry on the order. Even your closest allies condemn it. It is the single most damaging thing you have ever done.',
+        effects:{ legal_exposure:30, approval:-15, civil_unrest:25, congress_support:-20, disaster:'Attempted Election Cancellation' } }
+    ] },
+
+  { id:'cancel_2028_elections', name:'Attempt to Cancel 2028 Elections', desc:'Declare a national emergency to suspend the 2028 election.',
+    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 30,
+    oneTime:true,
+    outcomes:[
+      { prob:0.03, label:'PARTIAL SUCCESS', style:'partial',
+        narrative:'In unprecedented chaos, you manage to delay certification in three states. Courts ultimately overrule you. But the damage to democracy is done. You are impeached within weeks.',
+        effects:{ legal_exposure:40, approval:-20, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } },
+      { prob:0.97, label:'FAILED', style:'fail',
+        narrative:'The Supreme Court votes 8-1 against you. The military declines to act. You are removed from office within 30 days under the 25th Amendment. It is over.',
+        effects:{ legal_exposure:45, approval:-25, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } }
+    ] },
+
+  { id:'ukraine_ceasefire_retry', name:'Push Ukraine Ceasefire', desc:'Work back-channels to arrange a temporary ceasefire.',
+    cat:'FOREIGN', condition: s => s.flags.ukraine_war_active, cooldown:4,
+    outcomes:[
+      { prob:0.40, label:'CEASEFIRE HOLDS', style:'success',
+        narrative:'A 72-hour humanitarian ceasefire takes hold. Both sides use the pause to rearm. But the quiet is welcome. Diplomatic channels reopen.',
+        effects:{ approval_r:-2, approval_d:4, approval_i:3, 'rel:Russia':5, 'rel:Ukraine':-3, 'flag:ceasefire_tried':true } },
+      { prob:0.35, label:'BRIEF PAUSE', style:'partial',
+        narrative:'A 24-hour ceasefire holds before Russia shells a hospital and Ukraine responds. Brief. Futile. But noted.',
+        effects:{ approval_i:2, 'flag:ceasefire_tried':true } },
+      { prob:0.25, label:'REJECTED', style:'fail',
+        narrative:'Russia publicly rejects the ceasefire proposal. The Kremlin calls it "a propaganda exercise." Fighting intensifies.',
+        effects:{ approval:-2, 'rel:Russia':-5 } }
+    ] },
+
+  { id:'war_address_nation', name:'Address the Nation on War', desc:'Oval Office address explaining US military posture.',
+    cat:'MILITARY', condition: s => s.active_conflicts.length > 0, cooldown:5,
+    narrative: 'You sit behind the Resolute Desk. The cameras are on. You explain the stakes clearly and calmly. The country listens. Approval among independents ticks up. Even some Democrats grudgingly admit it was presidential.',
+    effects:{ approval_r:4, approval_d:3, approval_i:6, civil_unrest:-3 } },
+
+  { id:'pass_immigration_reform', name:'Comprehensive Immigration Reform', desc:'Pass a major immigration overhaul through Congress.',
+    cat:'DOMESTIC', condition: s => s.house_seats >= 218, oneTime:true,
+    narrative:'The most sweeping immigration overhaul since 1986. A path to legal status for 11 million. Tough new enforcement. Modernized visa system. Something for everyone to hate. Something for everyone to love.',
+    effects:{ approval_r:8, approval_i:3, approval_d:-4, 'rel:Mexico':15, 'flag:border_crisis':false, budget_health:-10 } },
+
+  // ── MORE FOREIGN ──
+  { id:'mexico_security_pact', name:'Mexico Security Partnership', desc:'Joint US-Mexico cartel crackdown and border security deal.',
+    cat:'FOREIGN', condition: s => s.flags.border_crisis, oneTime:true,
+    narrative:'A summit in Mexico City. Joint task forces. Shared intelligence. Mexican marines and DEA agents operating side by side. The cartels are not pleased. Neither are the nativists in your party.',
+    effects:{ approval_r:-2, approval_d:6, approval_i:7, 'rel:Mexico':20, 'flag:border_crisis':false, civil_unrest:-5 } },
+
+  { id:'uk_trade_deal', name:'US-UK Free Trade Agreement', desc:'Negotiate a landmark trade deal with Britain post-Brexit.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'The most significant Anglo-American trade deal since Lend-Lease. Tariffs on thousands of goods eliminated. Special Relationship banners hang in Downing Street. Wall Street celebrates.',
+    effects:{ approval_r:6, approval_d:2, approval_i:4, 'rel:UK':20, market_confidence:6, gdp_growth:0.3 } },
+
+  { id:'india_partnership', name:'Strengthen India Strategic Partnership', desc:'Deep defense and technology partnership with India.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'Modi visits Washington. Joint defense production. Technology transfer. Semiconductors. The counterweight to China that foreign policy experts have wanted for decades.',
+    effects:{ approval_r:4, approval_i:5, 'rel:India':25, 'rel:China':-8, military_readiness:4 } },
+
+  { id:'iran_sanctions_max', name:'Maximum Pressure Sanctions on Iran', desc:'Comprehensive secondary sanctions targeting Iran\'s oil exports.',
+    cat:'FOREIGN', condition: s => !s.flags.iran_war, oneTime:true,
+    narrative:'Every bank, every tanker, every intermediary that touches Iranian oil is sanctioned. Iranian oil exports fall to near zero. The economy in Tehran is in crisis. The hardliners consolidate power.',
+    effects:{ approval_r:6, approval_d:-4, approval_i:2, 'rel:Iran':-20, 'rel:China':-8, market_confidence:-4, budget_health:3 } },
+
+  { id:'africa_investment', name:'African Development Initiative', desc:'$50B US investment fund for African infrastructure.',
+    cat:'FOREIGN', condition: s => true, oneTime:true,
+    narrative:'You announce the biggest US commitment to African development since the Marshall Plan. Chinese diplomats are furious. African leaders are cautiously optimistic. USAID gets a new mission.',
+    effects:{ approval_d:8, approval_i:5, 'rel:UN':12, budget_health:-10, market_confidence:3 } },
+
+  // ── MORE ECONOMIC ──
+  { id:'fed_rate_cut_push', name:'Push Fed for Emergency Rate Cut', desc:'Public pressure campaign for lower interest rates.',
+    cat:'ECONOMIC', condition: s => s.interest_rate > 4.0, cooldown:5,
+    narrative:'You tweet at the Fed Chair three times before 8am. Markets surge on the implication. The Fed issues a measured statement about its independence. You tweet again. Markets love it.',
+    effects:{ approval_r:4, approval_i:2, market_confidence:7, inflation:0.5 } },
+
+  { id:'oil_deregulation', name:'Full Oil & Gas Deregulation', desc:'Eliminate federal regulations on fossil fuel extraction.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'Every EPA rule, every offshore drilling restriction, every pipeline permit delay — gone. Energy companies announce $200B in new investment within a week. The Sierra Club declares war.',
+    effects:{ approval_r:9, approval_d:-6, approval_i:1, gdp_growth:0.4, inflation:-0.3, market_confidence:6 } },
+
+  { id:'crypto_regulation', name:'Crypto-Friendly Regulatory Framework', desc:'Establish the US as the global hub for cryptocurrency.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'You sign the Digital Asset Clarity Act at a White House crypto summit. Bitcoin hits $200,000. Silicon Valley sends thank-you notes. Warren and Sanders introduce a bill to reverse it immediately.',
+    effects:{ approval_r:5, approval_d:-5, approval_i:6, market_confidence:8 } },
+
+  { id:'tax_cuts_middle', name:'Middle Class Tax Cuts', desc:'Significant tax relief for households under $150K.',
+    cat:'ECONOMIC', condition: s => true, oneTime:true,
+    narrative:'You call it "the biggest middle class tax cut in history." The non-partisan Tax Foundation says it\'s actually the fifth biggest, but close enough. Working families notice the bigger paychecks.',
+    effects:{ approval_r:5, approval_d:8, approval_i:12, budget_health:-12, market_confidence:4 } },
+
+  { id:'recession_response', name:'Emergency Anti-Recession Package', desc:'Stimulus spending to counter economic downturn.',
+    cat:'ECONOMIC', condition: s => s.gdp_growth < 1.0, oneTime:false, cooldown:6,
+    narrative:'The emergency package is fast-tracked through Congress. Checks go out within three weeks. Economists debate the merits. Voters appreciate the deposits.',
+    effects:{ approval_i:6, approval_d:4, gdp_growth:0.8, market_confidence:5, budget_health:-15 } },
+
+  // ── MORE DOMESTIC ──
+  { id:'opioid_crisis', name:'National Opioid Crisis Response', desc:'Federal emergency declaration and treatment funding.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'You declare the opioid epidemic a national emergency. A billion dollars goes to treatment programs. Pharmaceutical companies are held liable. Rural America — hard hit by the crisis — notices.',
+    effects:{ approval_r:4, approval_d:10, approval_i:11, civil_unrest:-4, budget_health:-8 } },
+
+  { id:'police_reform', name:'Federal Police Reform Act', desc:'National standards for use of force and accountability.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'You negotiate a careful federal framework — body cameras, use of force standards, community oversight boards. Police unions are unhappy. Civil rights groups call it insufficient. Most of the country considers it reasonable.',
+    effects:{ approval_r:-4, approval_d:10, approval_i:8, civil_unrest:-8, legal_exposure:-3 } },
+
+  { id:'gun_rights_expansion', name:'Federal Concealed Carry Reciprocity', desc:'Allow concealed carry permits to be valid in all states.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'Every state must now honor every other state\'s concealed carry permit. The NRA declares it a historic victory. Blue state governors immediately file lawsuits. The Supreme Court agrees to hear the case.',
+    effects:{ approval_r:10, approval_d:-12, approval_i:-5, civil_unrest:6, legal_exposure:5 } },
+
+  { id:'space_force_expand', name:'Expand Space Force', desc:'Massively grow US Space Force capabilities.',
+    cat:'MILITARY', condition: s => true, oneTime:true,
+    narrative:'You announce a $40B Space Force expansion — satellite networks, anti-satellite weapons, Moon base feasibility studies. China and Russia immediately announce competing programs. The final frontier militarizes.',
+    effects:{ approval_r:6, approval_d:2, approval_i:4, military_readiness:5, budget_health:-12, market_confidence:3 } },
+
+  { id:'domestic_surveillance', name:'Expand Domestic Surveillance Program', desc:'Broaden NSA surveillance capabilities for national security.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'The classified order expands to allow broader collection of domestic communications. Your lawyers say it\'s legal. Civil libertarians say it isn\'t. The NSA is thrilled. Congress mostly doesn\'t ask questions.',
+    effects:{ approval_r:3, approval_d:-8, approval_i:-6, legal_exposure:10, civil_unrest:5 } },
+
+  { id:'prison_reform', name:'Criminal Justice Reform', desc:'Sentencing reform and prison rehabilitation programs.',
+    cat:'DOMESTIC', condition: s => true, oneTime:true,
+    narrative:'The First Step Act II. Mandatory minimum reductions. Rehabilitation programs. Early release reviews for nonviolent offenders. Bipartisan support. Tucker Carlson is displeased. Surprising coalition backs the bill.',
+    effects:{ approval_r:1, approval_d:12, approval_i:10, civil_unrest:-6, budget_health:-5 } },
+
+  // ── MORE POLITICAL ──
+  { id:'state_of_union', name:'State of the Union Address', desc:'Annual presidential address to a joint session of Congress.',
+    cat:'POLITICAL', condition: s => true, cooldown:6,
+    narrative:'You stand at the podium in the House chamber. A historic address. Bold claims about the economy, strength abroad, unity at home. Some of it is true. The TV ratings are enormous. You look presidential.',
+    effects:{ approval_r:3, approval_d:2, approval_i:4, congress_support:3 } },
+
+  { id:'scotus_nomination', name:'Nominate Supreme Court Justice', desc:'Confirm a reliable conservative to the Supreme Court.',
+    cat:'POLITICAL', condition: s => s.senate_seats >= 51 && !s.flags.scotus_filled, oneTime:true,
+    narrative:'Your nominee has impeccable credentials and a paper trail that makes the Federalist Society weep with joy. The Senate confirmation battle is brutal. 52-48. History is made.',
+    effects:{ approval_r:8, approval_d:-10, approval_i:-3, congress_support:4, 'flag:scotus_filled':true, legal_exposure:-5 } },
+
+  { id:'media_war', name:'Declare War on "Fake News" Media', desc:'Aggressive campaign against hostile news organizations.',
+    cat:'POLITICAL', condition: s => true, cooldown:5,
+    narrative:'You pull press credentials, threaten broadcast licenses, and file defamation suits. Your base cheers "fake news." Journalists rally. International press freedom groups condemn the US. Your poll numbers with Republicans tick up.',
+    effects:{ approval_r:6, approval_d:-10, approval_i:-4, civil_unrest:5, legal_exposure:4 } },
+
+  { id:'executive_orders_blitz', name:'100-Day Executive Order Blitz', desc:'Sign 50 executive orders reshaping federal policy.',
+    cat:'POLITICAL', condition: s => s.turn < 4, oneTime:true,
+    narrative:'Fifty executive orders in thirty days. Regulatory rollbacks, hiring freezes, policy reversals. Courts will block some. Agencies scramble to comply with the rest. Your base is delighted. The bureaucracy is in chaos.',
+    effects:{ approval_r:8, approval_d:-10, approval_i:-2, legal_exposure:8, congress_support:5 } },
+
+  { id:'declassify_files', name:'Declassify JFK/UFO/Deep State Files', desc:'Release classified government documents to the public.',
+    cat:'POLITICAL', condition: s => true, oneTime:true,
+    narrative:'Millions of pages released. JFK files — inconclusive but tantalizing. UAP files — something is clearly being redacted still. "Deep state" memos — turns out the bureaucracy is mostly boring. But the base loves it.',
+    effects:{ approval_r:5, approval_d:1, approval_i:6, civil_unrest:-2 } },
+
+  { id:'doge_efficiency', name:'Federal Efficiency Commission', desc:'Task force to slash government waste and reduce spending.',
+    cat:'POLITICAL', condition: s => true, oneTime:true,
+    narrative:'A tech billionaire leads a commission tasked with cutting $500B in federal waste. Federal workers protest. Agencies claim essential functions are being gutted. Some savings are real. The media covers every colorful firing.',
+    effects:{ approval_r:10, approval_d:-8, approval_i:2, budget_health:10, civil_unrest:6, congress_support:3 } },
+];
+
+// ── UI STATE ──────────────────────────────────────────────────────────────────
+let state = createState();
+let ui = {
+  view: 'game',  // 'game','outcome','midterm','end'
+  selectedCategory: 'ALL',
+  lastOutcome: null,
+  lastEvents: [],
+  pendingMidterm: null,
+};
+
+function getActionCooldownRemaining(s, action) {
+  if (!action.cooldown) return 0;
+  const lastUsed = s.action_cooldowns[action.id] || -999;
+  return Math.max(0, action.cooldown - (s.turn - lastUsed));
+}
+
+function isActionAvailable(s, action) {
+  if (action.oneTime && s.completed_actions.has(action.id)) return false;
+  if (action.condition && !action.condition(s)) return false;
+  if (getActionCooldownRemaining(s, action) > 0) return false;
+  return true;
+}
+
+function getAvailableActions(s, category) {
+  let acts = ACTIONS.filter(a => isActionAvailable(s, a));
+  if (category && category !== 'ALL') acts = acts.filter(a => a.cat === category);
+  return acts;
+}
+
+function rollOutcome(action, s) {
+  if (!action.outcomes) {
+    return {
+      label: 'ACTION TAKEN',
+      style: 'success',
+      narrative: action.narrative || 'The action was carried out.',
+      effects: action.effects || {}
+    };
+  }
+  const probs = action.outcomes.map(o => {
+    const p = typeof o.prob === 'function' ? o.prob(s) : o.prob;
+    return Math.max(0, p);
+  });
+  const total = probs.reduce((a,b)=>a+b, 0);
+  const norm = probs.map(p => p/total);
+  const roll = Math.random();
+  let cum = 0;
+  for (let i = 0; i < action.outcomes.length; i++) {
+    cum += norm[i];
+    if (roll <= cum) return action.outcomes[i];
+  }
+  return action.outcomes[action.outcomes.length-1];
+}
+
+function executeAction(actionId) {
+  const action = ACTIONS.find(a => a.id === actionId);
+  if (!action || !isActionAvailable(state, action)) return;
+
+  const outcome = rollOutcome(action, state);
+  applyEffects(state, outcome.effects || {});
+  addNews(state, `[Turn ${state.turn+1}] ${action.name}`);
+
+  if (action.oneTime || action.completed) state.completed_actions.add(action.id);
+  if (action.cooldown) state.action_cooldowns[action.id] = state.turn;
+
+  state.action_history.push({ turn: state.turn, month: getDate(state).month + ' ' + getDate(state).year, name: action.name, label: outcome.label || 'DONE' });
+
+  // Fire events
+  const firedEvents = fireRandomEvents(state);
+
+  // Passive tick
+  passiveTick(state);
+
+  // Check midterm (turn 5 = November 2026)
+  if (state.turn === 4 && !state.midterm_done) {
+    const mtResult = runMidterms(state);
+    ui.view = 'midterm';
+    ui.pendingMidterm = mtResult;
+    ui.lastOutcome = { action, outcome, firedEvents };
+    render();
+    return;
+  }
+
+  state.turn++;
+
+  const go = checkGameOver(state);
+  if (go.over) {
+    state.gameOver = true;
+    state.victory = go.victory;
+    state.endReason = go.reason;
+    ui.view = 'end';
+    render();
+    return;
+  }
+
+  ui.lastOutcome = { action, outcome, firedEvents };
+  ui.view = 'outcome';
+  render();
+}
+
+function advanceFromOutcome() {
+  ui.view = 'game';
+  ui.lastOutcome = null;
+  render();
+}
+
+function advanceFromMidterm() {
+  state.turn++;
+  const go = checkGameOver(state);
+  if (go.over) {
+    state.gameOver = true;
+    state.victory = go.victory;
+    state.endReason = go.reason;
+    ui.view = 'end';
+  } else if (ui.lastOutcome) {
+    ui.view = 'outcome';
+  } else {
+    ui.view = 'game';
+  }
+  render();
+}
+
+// ── RENDER HELPERS ────────────────────────────────────────────────────────────
+function pctBar(val, max, colorClass, h) {
+  const pct = Math.min(100, Math.max(0, (val/max)*100));
+  return `<div class="bar-track" style="height:${h||8}px"><div class="bar-fill ${colorClass}" style="width:${pct}%"></div></div>`;
+}
+
+function relColor(v) {
+  if (v >= 50) return '#28a745';
+  if (v >= 20) return '#6dde8d';
+  if (v >= 0) return '#ffc107';
+  if (v >= -30) return '#fd7e14';
+  return '#dc3545';
+}
+
+function threatColor(t) {
+  const c = ['','#28a745','#ffc107','#fd7e14','#dc3545','#ff0000'];
+  return c[t] || '#6c757d';
+}
+
+function formatEffect(key, val) {
+  if (key.startsWith('flag:') || key.startsWith('rel:') || key === 'add_conflict' || key === 'remove_conflict' || key === 'achievement' || key === 'disaster') return null;
+  const names = {
+    approval_r:'R Approval', approval_d:'D Approval', approval_i:'I Approval',
+    approval:'Overall Approval', market_confidence:'Markets', gdp_growth:'GDP Growth',
+    inflation:'Inflation', unemployment:'Unemployment', military_readiness:'Military Readiness',
+    legal_exposure:'Legal Exposure', civil_unrest:'Civil Unrest', budget_health:'Budget Health',
+    congress_support:'Congress Support', threat_level:'Threat Level',
+    house_seats:'House Seats', senate_seats:'Senate Seats'
+  };
+  if (!names[key]) return null;
+  const name = names[key];
+  const pos = val > 0;
+  const bad = ['inflation','unemployment','legal_exposure','civil_unrest','threat_level'].includes(key);
+  const good = (pos && !bad) || (!pos && bad);
+  return `<div class="effect-row"><span class="effect-name">${name}</span><span class="${good?'effect-pos':'effect-neg'}">${val>0?'+':''}${typeof val==='number'?val.toFixed(val%1===0?0:1):val}</span></div>`;
+}
+
+function outcomeStyleClass(style) {
+  const m = { success:'success', partial:'partial', fail:'fail', undetected:'undetected', detected:'detected', exposed:'fail' };
+  return m[style] || 'success';
+}
+
+function successChanceLabel(action, s) {
+  if (!action.outcomes) return '';
+  const probs = action.outcomes.map(o => typeof o.prob === 'function' ? o.prob(s) : o.prob);
+  const total = probs.reduce((a,b)=>a+b,0);
+  const p = total > 0 ? probs[0]/total : 0;
+  if (p >= 0.70) return '<span class="badge badge-chance-high">HIGH</span>';
+  if (p >= 0.40) return '<span class="badge badge-chance-med">MED</span>';
+  return '<span class="badge badge-chance-low">LOW</span>';
+}
+
+// ── MAIN RENDER ───────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  if (ui.view === 'outcome') { app.innerHTML = renderOutcome(); return; }
+  if (ui.view === 'midterm') { app.innerHTML = renderMidterm(); return; }
+  if (ui.view === 'end') { app.innerHTML = renderEnd(); return; }
+  app.innerHTML = renderGame();
+}
+
+function renderGame() {
+  const s = state;
+  const d = getDate(s);
+  const turnsLeft = 31 - s.turn;
+  const approvalColor = s.approval >= 50 ? '#28a745' : s.approval >= 35 ? '#ffc107' : '#dc3545';
+
+  // Warnings
+  let warnings = [];
+  if (s.approval < 20) warnings.push('⚠ CRITICAL: Approval at ' + s.approval.toFixed(0) + '% — cabinet may invoke 25th Amendment');
+  if (s.market_confidence < 25) warnings.push('⚠ MARKETS: Confidence at ' + s.market_confidence.toFixed(0) + '/100 — collapse risk growing');
+  if (s.legal_exposure > 75) warnings.push('⚠ LEGAL: Exposure at ' + s.legal_exposure.toFixed(0) + '/100 — impeachment proceedings imminent');
+  if (s.civil_unrest > 70) warnings.push('⚠ UNREST: Civil unrest at ' + s.civil_unrest.toFixed(0) + '/100 — order breaking down');
+  if (s.inflation > 7) warnings.push('⚠ INFLATION: At ' + s.inflation.toFixed(1) + '% — economic crisis looming');
+  if (s.flags.shutdown_active) warnings.push('⚠ SHUTDOWN: Government shutdown in progress — agencies unfunded');
+
+  // Available actions
+  const catFilter = ui.selectedCategory;
+  const availActs = getAvailableActions(s, catFilter);
+
+  const catCounts = {};
+  ['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL','CRIMES'].forEach(c => {
+    catCounts[c] = getAvailableActions(s, c).length;
+  });
+
+  const actionCards = availActs.slice(0, 12).map(a => {
+    const catLow = a.cat.toLowerCase();
+    const cooldown = getActionCooldownRemaining(s, a);
+    return `<div class="action-card ${catLow}" onclick="executeAction('${a.id}')">
+      <div class="action-name">${a.name}</div>
+      <div class="action-desc">${a.desc}</div>
+      <div class="action-badges">
+        <span class="badge badge-cat">${a.cat}</span>
+        ${successChanceLabel(a, s)}
+        ${a.oneTime ? '<span class="badge badge-onetime">ONE-TIME</span>' : ''}
+        ${a.cooldown ? `<span class="badge badge-cooldown">CD:${a.cooldown}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="fade-in">
+  <div class="header-bar">
+    <div class="header-title">
+      <span>POTUS</span>
+      <span>${d.month} ${d.year}</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill"><div class="val" style="color:${approvalColor}">${s.approval.toFixed(0)}%</div><div class="lbl">Approval</div></div>
+      <div class="stat-pill"><div class="val">T${s.turn+1}/31</div><div class="lbl">Turn</div></div>
+      <div class="stat-pill"><div class="val">${turnsLeft}</div><div class="lbl">Left</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Approval Ratings</div>
+    <div class="bar-row"><div class="bar-label" style="color:#dc3545;width:40px;font-size:10px">REP</div>${pctBar(s.approval_r,100,'r-color')}<div class="bar-pct" style="color:#dc3545">${s.approval_r.toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label" style="color:#0d6efd;width:40px;font-size:10px">DEM</div>${pctBar(s.approval_d,100,'d-color')}<div class="bar-pct" style="color:#0d6efd">${s.approval_d.toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label" style="color:#ffc107;width:40px;font-size:10px">IND</div>${pctBar(s.approval_i,100,'i-color')}<div class="bar-pct" style="color:#ffc107">${s.approval_i.toFixed(0)}%</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Economy</div>
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <div class="m-label">Markets</div>
+        <div class="m-value" style="color:${s.market_confidence>50?'#28a745':s.market_confidence>30?'#ffc107':'#dc3545'}">${s.market_confidence.toFixed(0)}</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${s.market_confidence}%;background:${s.market_confidence>50?'#28a745':'#dc3545'}"></div></div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Inflation</div>
+        <div class="m-value" style="color:${s.inflation<4?'#28a745':s.inflation<7?'#ffc107':'#dc3545'}">${s.inflation.toFixed(1)}%</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${Math.min(100,s.inflation/15*100)}%;background:${s.inflation<4?'#28a745':'#dc3545'}"></div></div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">GDP Growth</div>
+        <div class="m-value" style="color:${s.gdp_growth>2?'#28a745':s.gdp_growth>0?'#ffc107':'#dc3545'}">${s.gdp_growth.toFixed(1)}%</div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Budget</div>
+        <div class="m-value" style="color:${s.budget_health>40?'#28a745':s.budget_health>20?'#ffc107':'#dc3545'}">${s.budget_health.toFixed(0)}</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${s.budget_health}%;background:${s.budget_health>40?'#28a745':'#dc3545'}"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Security</div>
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <div class="m-label">Military</div>
+        <div class="m-value" style="color:${s.military_readiness>60?'#28a745':s.military_readiness>40?'#ffc107':'#dc3545'}">${s.military_readiness.toFixed(0)}</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${s.military_readiness}%;background:#0d6efd"></div></div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Threat Level</div>
+        <div class="m-value" style="color:${threatColor(s.threat_level)}">${['','LOW','ELEVATED','HIGH','SEVERE','WAR'][s.threat_level]||s.threat_level}</div>
+        <div class="threat-dots">${[1,2,3,4,5].map(i=>`<div class="threat-dot${i<=s.threat_level?' active-'+i:''}"></div>`).join('')}</div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Legal Risk</div>
+        <div class="m-value" style="color:${s.legal_exposure<40?'#28a745':s.legal_exposure<70?'#ffc107':'#dc3545'}">${s.legal_exposure.toFixed(0)}/100</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${s.legal_exposure}%;background:${s.legal_exposure<40?'#28a745':'#dc3545'}"></div></div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Civil Unrest</div>
+        <div class="m-value" style="color:${s.civil_unrest<35?'#28a745':s.civil_unrest<65?'#ffc107':'#dc3545'}">${s.civil_unrest.toFixed(0)}/100</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${s.civil_unrest}%;background:${s.civil_unrest<35?'#28a745':'#dc3545'}"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:12px;font-size:11px">
+      <span>House: <strong style="color:${s.house_seats>=218?'#28a745':'#dc3545'}">${s.house_seats}</strong>/435 (${s.house_seats>=218?'MAJORITY':'MINORITY'})</span>
+      <span>Senate: <strong style="color:${s.senate_seats>=51?'#28a745':'#dc3545'}">${s.senate_seats}</strong>/100 (${s.senate_seats>=60?'SUPER':s.senate_seats>=51?'MAJ':'MIN'})</span>
+    </div>
+  </div>
+
+  ${s.active_conflicts.length > 0 ? `<div class="card">
+    <div class="card-title">Active Conflicts (${s.active_conflicts.length})</div>
+    <div class="conflicts-list">
+      ${s.active_conflicts.map(c => {
+        const bal = s.conflict_balances[c] || 0;
+        const balColor = bal > 20 ? '#28a745' : bal > -20 ? '#ffc107' : '#dc3545';
+        const balDesc = bal > 30 ? 'US/Allies Winning' : bal > 0 ? 'Slight US Advantage' : bal > -30 ? 'Stalemate' : 'Adversary Gaining';
+        return `<div class="conflict-item">
+          <div class="conflict-name">${c}</div>
+          <div class="conflict-balance" style="color:${balColor}">${balDesc} (${bal>0?'+':''}${bal.toFixed(0)})</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>` : `<div class="card" style="border-color:#28a745"><div style="color:#28a745;font-size:12px;text-align:center">No active conflicts — peace holds</div></div>`}
+
+  <div class="card">
+    <div class="card-title">World Relations</div>
+    <div class="relations-grid">
+      ${Object.entries(s.relations).map(([country, val]) =>
+        `<div class="rel-item"><div class="rel-name">${country}</div><div class="rel-val" style="color:${relColor(val)}">${val>0?'+':''}${val.toFixed(0)}</div></div>`
+      ).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">News Wire</div>
+    ${s.news_log.slice(0,4).map(n => `<div class="news-item">${n}</div>`).join('')}
+  </div>
+
+  ${warnings.length > 0 ? `<div class="warning-panel"><div class="warning-text">${warnings.join('<br>')}</div></div>` : ''}
+
+  <div class="card">
+    <div class="card-title">Presidential Actions</div>
+    <div class="cat-filter">
+      <button class="cat-btn${catFilter==='ALL'?' active':''}" onclick="setCategory('ALL')">All (${getAvailableActions(s,'ALL').length})</button>
+      ${['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL','CRIMES'].map(c =>
+        `<button class="cat-btn ${c.toLowerCase()}${catFilter===c?' active':''}" onclick="setCategory('${c}')">${c} (${catCounts[c]})</button>`
+      ).join('')}
+    </div>
+    ${availActs.length === 0 ? '<div class="no-actions">No actions available in this category right now.</div>' : actionCards}
+  </div>
+  </div>`;
+}
+
+function renderOutcome() {
+  const { action, outcome, firedEvents } = ui.lastOutcome;
+  const styleClass = outcomeStyleClass(outcome.style);
+  const label = outcome.label || 'ACTION TAKEN';
+
+  const effectRows = Object.entries(outcome.effects || {}).map(([k,v]) => formatEffect(k,v)).filter(Boolean).join('');
+
+  const specialEffects = [];
+  if (outcome.effects) {
+    if (outcome.effects['flag:ukraine_war_active'] === false) specialEffects.push('🕊 Ukraine-Russia War ended');
+    if (outcome.effects['flag:israel_conflict_active'] === false) specialEffects.push('🕊 Gaza Conflict ended');
+    if (outcome.effects['flag:iran_war'] === true) specialEffects.push('💥 Iran War has begun');
+    if (outcome.effects['add_conflict']) specialEffects.push('⚔️ New conflict: ' + outcome.effects['add_conflict']);
+    if (outcome.effects['remove_conflict']) specialEffects.push('✅ Conflict resolved: ' + outcome.effects['remove_conflict']);
+    if (outcome.effects['achievement']) specialEffects.push('🏆 Achievement: ' + outcome.effects['achievement']);
+    if (outcome.effects['disaster']) specialEffects.push('💀 Disaster: ' + outcome.effects['disaster']);
+  }
+
+  return `<div class="overlay"><div class="outcome-box fade-in">
+    <div class="outcome-label ${styleClass}">${label}</div>
+    <div style="font-size:12px;color:#6c757d;text-align:center;margin-bottom:10px">${action.name}</div>
+    <div class="outcome-narrative">${outcome.narrative || ''}</div>
+    ${effectRows ? `<div class="card-title" style="margin-top:12px">Effects</div><div class="effects-list">${effectRows}</div>` : ''}
+    ${specialEffects.length > 0 ? `<div style="margin:8px 0">${specialEffects.map(s=>`<div style="font-size:12px;padding:3px 0;color:#ffc107">${s}</div>`).join('')}</div>` : ''}
+    ${firedEvents && firedEvents.length > 0 ? `<div class="card-title" style="margin-top:12px">Breaking Events</div>${firedEvents.map(e=>`<div class="event-flash"><div class="event-flash-title">⚡ ${e.headline}</div><div class="event-flash-body">${e.body}</div></div>`).join('')}` : ''}
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="advanceFromOutcome()">Continue →</button>
+  </div></div>`;
+}
+
+function renderMidterm() {
+  const s = state;
+  const mt = ui.pendingMidterm;
+  const houseMaj = s.house_seats >= 218;
+  const senateMaj = s.senate_seats >= 51;
+
+  return `<div class="overlay"><div class="outcome-box fade-in">
+    <div class="midterm-screen">
+      <div class="midterm-title">MIDTERM ELECTIONS</div>
+      <div style="font-size:13px;color:#6c757d;margin-bottom:16px">November 2026 — The country votes</div>
+      <div class="seat-display">
+        <div class="seat-chamber">
+          <div class="seat-count" style="color:${houseMaj?'#28a745':'#dc3545'}">${s.house_seats}</div>
+          <div class="seat-label">House Seats</div>
+          <div class="seat-status ${houseMaj?'held':'lost'}">${houseMaj?'MAJORITY HELD':'MAJORITY LOST'}</div>
+          <div style="font-size:11px;color:#6c757d;margin-top:4px">${mt.houseDelta >= 0 ? '+' : ''}${mt.houseDelta} seats</div>
+        </div>
+        <div class="seat-chamber">
+          <div class="seat-count" style="color:${senateMaj?'#28a745':'#dc3545'}">${s.senate_seats}</div>
+          <div class="seat-label">Senate Seats</div>
+          <div class="seat-status ${senateMaj?'held':'lost'}">${senateMaj?'MAJORITY HELD':'MAJORITY LOST'}</div>
+          <div style="font-size:11px;color:#6c757d;margin-top:4px">${mt.senateDelta >= 0 ? '+' : ''}${mt.senateDelta} seats</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#b0b0c4;padding:10px;background:#0d0d14;border-radius:8px;text-align:left;margin-bottom:16px">
+        ${houseMaj && senateMaj ? '✅ Republicans hold both chambers. Your legislative agenda remains intact.' :
+          !houseMaj && !senateMaj ? '⚠️ Republicans lose both chambers. The next two years will be governed by executive order — and constant investigations.' :
+          houseMaj ? '⚠️ Senate lost. You can still pass legislation, but judicial appointments become a battle.' :
+          '⚠️ House lost. Expect investigations, subpoenas, and an uphill fight on every bill.'}
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="advanceFromMidterm()">Continue →</button>
+    </div>
+  </div></div>`;
+}
+
+function renderEnd() {
+  const s = state;
+  const score = calcScore(s);
+  const legacy = legacyTitle(score, s.victory);
+  const d = getDate(s);
+
+  return `<div class="overlay"><div class="outcome-box fade-in">
+    <div class="end-screen">
+      <div class="end-title ${s.victory?'victory-title':'defeat-title'}">${s.victory?'PRESIDENCY COMPLETE':'PRESIDENCY ENDED'}</div>
+      <div class="end-reason">${s.endReason}</div>
+
+      <div class="score-display">
+        <div class="score-label">Final Score</div>
+        <div class="score-number">${score}</div>
+        <div class="score-bar"><div class="score-bar-fill" style="width:${score/10}%"></div></div>
+        <div class="score-label" style="margin-top:4px">/1000</div>
+      </div>
+
+      <div class="legacy-title">"${legacy}"</div>
+
+      <div class="section-sep"></div>
+      <div class="card-title">Final Statistics</div>
+      <div class="metrics-grid" style="margin-bottom:12px">
+        <div class="metric-item"><div class="m-label">Overall Approval</div><div class="m-value" style="color:#ffc107">${s.approval.toFixed(0)}%</div></div>
+        <div class="metric-item"><div class="m-label">Markets</div><div class="m-value">${s.market_confidence.toFixed(0)}/100</div></div>
+        <div class="metric-item"><div class="m-label">Legal Risk</div><div class="m-value" style="color:${s.legal_exposure>60?'#dc3545':'#28a745'}">${s.legal_exposure.toFixed(0)}/100</div></div>
+        <div class="metric-item"><div class="m-label">Inflation</div><div class="m-value" style="color:${s.inflation<4?'#28a745':'#dc3545'}">${s.inflation.toFixed(1)}%</div></div>
+      </div>
+
+      ${s.major_achievements.length > 0 ? `<div class="card-title">Achievements</div><div class="achievements-list" style="margin-bottom:10px">${s.major_achievements.map(a=>`<div class="achievement-item">✓ ${a}</div>`).join('')}</div>` : ''}
+      ${s.major_disasters.length > 0 ? `<div class="card-title">Disasters</div><div class="achievements-list" style="margin-bottom:10px">${s.major_disasters.map(a=>`<div class="disaster-item">✗ ${a}</div>`).join('')}</div>` : ''}
+
+      <div class="section-sep"></div>
+      <div class="card-title">Action History (${s.action_history.length} actions)</div>
+      <div class="history-list">
+        ${s.action_history.map(h=>`<div class="history-item"><span>${h.month}</span> — ${h.name} [${h.label}]</div>`).join('') || '<div class="history-item">No actions taken</div>'}
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="resetGame()">Play Again</button>
+    </div>
+  </div></div>`;
+}
+
+function setCategory(cat) {
+  ui.selectedCategory = cat;
+  render();
+}
+
+function resetGame() {
+  state = createState();
+  ui = { view:'game', selectedCategory:'ALL', lastOutcome:null, lastEvents:[], pendingMidterm:null };
+  render();
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
