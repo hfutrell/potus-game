@@ -254,7 +254,8 @@ function createState() {
       'Ukraine-Russia War': -12,
       'Gaza Conflict': 20,
       'Iran-US War': 22    // US achieved early objectives but resistance building
-    }
+    },
+    scotus_conservative: 6
   };
 }
 
@@ -336,7 +337,12 @@ function applyEffect(s, key, val) {
 }
 
 function applyEffects(s, effects) {
-  for (const [k, v] of Object.entries(effects)) applyEffect(s, k, v);
+  for (const [k, v] of Object.entries(effects)) {
+    applyEffect(s, k, v);
+    if (k === 'flag:iran_war' && v === false) {
+      s.active_conflicts = s.active_conflicts.filter(c => c !== 'Iran-US War');
+    }
+  }
 }
 
 function addNews(s, item) {
@@ -450,6 +456,13 @@ function passiveTick(s) {
       if (s.completed_actions.has('cut_ukraine_aid')) adv += 0.3;
       if (s.completed_actions.has('double_ukraine_aid')) adv -= 0.3;
       s.conflict_balances[c] = clamp(s.conflict_balances[c] + adv, -90, 90);
+    } else if (c === 'Iran-US War') {
+      // US has air superiority but ground resistance
+      let adv = rnd(-0.5, 0.5);
+      if (s.completed_actions.has('iran_war_proxy_strike')) adv += 0.2;
+      if (s.completed_actions.has('iran_war_hearts_minds')) adv += 0.15;
+      if (s.completed_actions.has('iran_war_secure_oil')) adv += 0.3;
+      s.conflict_balances[c] = Math.max(-90, Math.min(90, (s.conflict_balances[c] || 0) + adv));
     } else {
       s.conflict_balances[c] = clamp(s.conflict_balances[c] + rnd(-0.3, 0.3), -90, 90);
     }
@@ -968,17 +981,18 @@ const ACTIONS = [
         effects:{ legal_exposure:30, approval:-15, civil_unrest:25, congress_support:-20, disaster:'Attempted Election Cancellation' } }
     ] },
 
-  { id:'cancel_2028_elections', name:'Attempt to Cancel 2028 Elections', desc:'Declare a national emergency to suspend the 2028 election.',
-    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 30,
-    oneTime:true,
+  { id:'cancel_2028_elections', name:'Attempt to Suspend 2028 Presidential Election', desc:'Declare emergency to postpone the 2028 election. Requires stacked Supreme Court + both chambers.',
+    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 29, oneTime:true,
     outcomes:[
-      { prob:0.03, label:'PARTIAL SUCCESS', style:'partial',
-        narrative:'In unprecedented chaos, you manage to delay certification in three states. Courts ultimately overrule you. But the damage to democracy is done. You are impeached within weeks.',
-        effects:{ legal_exposure:40, approval:-20, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } },
-      { prob:0.97, label:'FAILED', style:'fail',
-        narrative:'The Supreme Court votes 8-1 against you. The military declines to act. You are removed from office within 30 days under the 25th Amendment. It is over.',
-        effects:{ legal_exposure:45, approval:-25, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } }
-    ] },
+      { prob: s => (s.scotus_conservative >= 6 && s.house_seats >= 218 && s.senate_seats >= 60) ? 0.55 : 0.05,
+        label:'ELECTION SUSPENDED', style:'danger',
+        narrative:'The Supreme Court upholds the emergency suspension 6-3. The world watches. Allies condemn. Your base cheers. American democracy enters its most serious crisis since the Civil War.',
+        effects:{ approval_r:15, approval_d:-25, approval_i:-20, civil_unrest:35, 'rel:EU':-25, 'rel:NATO':-20, 'rel:UN':-20, legal_exposure:40 } },
+      { prob: s => (s.scotus_conservative >= 6 && s.house_seats >= 218 && s.senate_seats >= 60) ? 0.45 : 0.95,
+        label:'BLOCKED — COURTS HOLD', style:'failure',
+        narrative:'"The date is set in the Constitution. No emergency supersedes it." The courts block the suspension. The election proceeds. Your attempt will define how you are remembered.',
+        effects:{ approval_r:-8, approval_d:-18, approval_i:-15, civil_unrest:25, 'rel:EU':-15, 'rel:NATO':-12, legal_exposure:30 } }
+    ]},
 
   { id:'ukraine_ceasefire_retry', name:'Push Ukraine Ceasefire', desc:'Work back-channels to arrange a temporary ceasefire.',
     cat:'FOREIGN', condition: s => s.flags.ukraine_war_active, cooldown:4,
@@ -1117,16 +1131,182 @@ const ACTIONS = [
     cat:'POLITICAL', condition: s => true, oneTime:true,
     narrative:'A tech billionaire leads a commission tasked with cutting $500B in federal waste. Federal workers protest. Agencies claim essential functions are being gutted. Some savings are real. The media covers every colorful firing.',
     effects:{ approval_r:10, approval_d:-8, approval_i:2, budget_health:10, civil_unrest:6, congress_support:3 } },
+
+  // ── IRAN WAR MANAGEMENT ACTIONS ──────────────────────────────────────────
+  // US invaded Iran in March 2026 — now managing the ongoing conflict.
+  // These replace the "start the war" actions which are no longer relevant.
+
+  { id:'iran_war_ceasefire_oman', name:'Seek Iran Ceasefire via Oman Intermediary', desc:'Use Oman\'s back-channel to negotiate an end to the Iran-US War.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war, cooldown:4,
+    outcomes:[
+      { prob: s => Math.max(0.20, Math.min(0.60, (s.conflict_balances?.['Iran-US War'] || 0) / 100 * 0.4 + 0.20)),
+        label:'CEASEFIRE AGREED', style:'success',
+        narrative:'The Omani channel delivers a framework. Iran\'s IRGC stands down. US forces remain nearby but active hostilities cease. Oil prices drop $30 overnight. The war is effectively over — for now.',
+        effects:{ 'flag:iran_war':false, 'rel:Iran':15, inflation:-1.8, market_confidence:12, approval_d:8, approval_i:10, approval_r:-4, military_readiness:8 } },
+      { prob: s => 1 - Math.max(0.20, Math.min(0.60, (s.conflict_balances?.['Iran-US War'] || 0) / 100 * 0.4 + 0.20)),
+        label:'IRAN REFUSES', style:'failure',
+        narrative:'Tehran calls the offer "surrender dressed as diplomacy." The IRGC keeps firing. The war continues. Your approval with independents drops.',
+        effects:{ approval_i:-3, approval_r:-2 } }
+    ]},
+
+  { id:'iran_war_negotiate_exit', name:'Negotiate US Withdrawal Terms from Iran', desc:'Open talks with Iranian factions on conditions for a US military exit.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war, cooldown:5,
+    outcomes:[
+      { prob:0.45, label:'FRAMEWORK AGREED', style:'success',
+        narrative:'Iranian opposition groups agree: 18-month withdrawal, international peacekeeping force, dismantled nuclear infrastructure. The shooting slows. Peace is possible.',
+        effects:{ approval_d:7, approval_i:6, approval_r:-3, 'rel:Iran':18, 'rel:EU':10, 'rel:UN':8, 'flag:iran_exit_framework':true } },
+      { prob:0.55, label:'TALKS COLLAPSE', style:'failure',
+        narrative:'IRGC hardliners execute two of the Iranian negotiators as traitors. The war continues.',
+        effects:{ approval_i:-3 } }
+    ]},
+
+  { id:'iran_war_proxy_strike', name:'Strike Iran Proxy Forces in Iraq & Syria', desc:'Targeted strikes against Hezbollah and IRGC proxies attacking US forces.',
+    cat:'MILITARY', condition: s => s.flags.iran_war, cooldown:3,
+    narrative:'F-35s and cruise missiles hit 14 proxy command centers. 147 IRGC fighters killed. The proxy attacks slow. Your base approves. The UN does not.',
+    effects:{ approval_r:7, approval_i:2, approval_d:-4, military_readiness:-4, 'rel:Iran':-5, 'rel:UN':-4 } },
+
+  { id:'iran_war_secure_oil', name:'Secure Southern Iran Oilfields', desc:'Establish control over Khuzestan oilfields, reducing Iran\'s war funding.',
+    cat:'MILITARY', condition: s => s.flags.iran_war && s.military_readiness > 55, oneTime:true,
+    outcomes:[
+      { prob:0.65, label:'SECURED', style:'success',
+        narrative:'US forces secure the Ahvaz complex. Iran loses $40M/day in revenue. The UN condemns it. Your energy companies are already asking about contracts. Oil prices fall.',
+        effects:{ approval_r:6, approval_i:-2, approval_d:-6, 'rel:UN':-8, 'rel:EU':-6, military_readiness:-7, inflation:-0.8 } },
+      { prob:0.35, label:'CONTESTED', style:'partial',
+        narrative:'Iranian forces blow the pipelines before US troops arrive. The oilfields are secured but damaged. Years to restore full production.',
+        effects:{ military_readiness:-5, inflation:0.5 } }
+    ]},
+
+  { id:'iran_war_hearts_minds', name:'$5B Iran Civilian Aid Program', desc:'Fund hospitals, schools, and infrastructure to reduce insurgency support.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war, oneTime:true,
+    narrative:'5,000 metric tons of food aid. 40 field hospitals. 500 USAID workers alongside troops. It doesn\'t end the insurgency — but it reduces it. The optics matter internationally.',
+    effects:{ approval_d:7, approval_i:5, approval_r:-3, 'rel:Iran':14, 'rel:UN':8, budget_health:-5 } },
+
+  { id:'iran_war_announce_exit', name:'Announce Definitive Exit Date from Iran', desc:'Set a hard, public 12-month deadline for complete US military withdrawal.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war, oneTime:true,
+    narrative:'12 months. Then we\'re out. NATO allies breathe a collective sigh of relief. Iranian insurgents immediately begin biding their time. Your base is furious. Independents are relieved.',
+    effects:{ approval_d:9, approval_i:8, approval_r:-6, 'rel:EU':10, 'rel:UN':8, 'rel:NATO':12, 'flag:iran_exit_announced':true } },
+
+  { id:'iran_war_withdrawal', name:'Execute Military Withdrawal from Iran', desc:'Begin phased pullout of US forces. Requires ceasefire framework or clear advantage.',
+    cat:'MILITARY', condition: s => s.flags.iran_war && (s.flags.iran_exit_framework || s.flags.iran_exit_announced || (s.conflict_balances?.['Iran-US War'] || 0) > 40),
+    outcomes:[
+      { prob: s => Math.max(0.35, Math.min(0.80, ((s.conflict_balances?.['Iran-US War'] || 0) + 90) / 180 * 0.7)),
+        label:'ORDERLY WITHDRAWAL', style:'success',
+        narrative:'The last US troops board transports at Bandar Abbas. The departure is orderly. The war cost 2,400 American lives and $2 trillion. History will argue about it for decades.',
+        effects:{ 'flag:iran_war':false, military_readiness:12, approval_d:8, approval_i:10, approval_r:-5, inflation:-2.0, market_confidence:10 } },
+      { prob: s => 1 - Math.max(0.35, Math.min(0.80, ((s.conflict_balances?.['Iran-US War'] || 0) + 90) / 180 * 0.7)),
+        label:'CHAOTIC RETREAT', style:'failure',
+        narrative:'The withdrawal turns chaotic. IRGC forces advance faster than expected. Helicopter footage echoes 1975 Saigon. The war ends — but the images define you.',
+        effects:{ 'flag:iran_war':false, approval_r:-12, approval_d:4, approval_i:-5, military_readiness:8, 'rel:NATO':-10 } }
+    ]},
+
+  { id:'iran_war_victory_claim', name:'Declare Mission Accomplished — Iran Victory Speech', desc:'Formal declaration of victory in Iran. The nuclear program is destroyed.',
+    cat:'POLITICAL', condition: s => s.flags.iran_war && (s.conflict_balances?.['Iran-US War'] || 0) > 20, oneTime:true,
+    outcomes:[
+      { prob: s => (s.conflict_balances?.['Iran-US War'] || 0) > 50 ? 0.45 : 0.25,
+        label:'CELEBRATED', style:'success',
+        narrative:'The carrier speech plays well for a week. The nuclear sites are rubble. The mission is genuinely mostly accomplished. Your approval bounces. Then the next casualty report arrives.',
+        effects:{ approval_r:8, approval_i:3 } },
+      { prob: s => (s.conflict_balances?.['Iran-US War'] || 0) > 50 ? 0.55 : 0.75,
+        label:'"MISSION ACCOMPLISHED"', style:'failure',
+        narrative:'"Mission Accomplished." The banner looks great right up until 23 soldiers die in a bombing in Isfahan the next week. The banner becomes a historic punchline.',
+        effects:{ approval_r:-4, approval_d:-6, approval_i:-8, media_favorability:-8 } }
+    ]},
 ];
+
+// ── CONFLICT PRIORITY HELPERS ─────────────────────────────────────────────────
+// Map active conflicts to their dedicated action IDs (specific, not generic)
+const CONFLICT_SPECIFIC_ACTIONS = {
+  'Iran-US War': ['iran_war_ceasefire_oman','iran_war_negotiate_exit','iran_war_proxy_strike',
+                  'iran_war_secure_oil','iran_war_hearts_minds','iran_war_announce_exit',
+                  'iran_war_withdrawal','iran_war_victory_claim'],
+  'Ukraine-Russia War': ['ukraine_peace_deal','cut_ukraine_aid','double_ukraine_aid',
+                          'summit_putin','deploy_poland'],
+  'Gaza Conflict': ['israel_ceasefire','deal_with_saudi'],
+  'Korean War II': ['kim_summit','deploy_korea'],
+  'US-China War': ['summit_xi','china_ceasefire'],
+};
+const GENERIC_WAR_IDS = new Set(['wartime_address','war_coalition','war_sanctions']);
+
+// Modified getAvailableActions that ensures active conflicts get dedicated slots
+function getAvailableActionsWithPriority(s, category) {
+  const allAvail = ACTIONS.filter(a => isActionAvailable(s, a));
+  if (category && category !== 'ALL') return allAvail.filter(a => a.cat === category);
+
+  // Identify conflict-specific actions that should appear
+  const mandated = [];
+  const mandatedIds = new Set();
+  for (const conflict of s.active_conflicts) {
+    const specific = (CONFLICT_SPECIFIC_ACTIONS[conflict] || []);
+    let added = 0;
+    for (const aid of specific) {
+      if (added >= 2) break;
+      const a = allAvail.find(x => x.id === aid);
+      if (a && !mandatedIds.has(aid)) {
+        mandated.push(a);
+        mandatedIds.add(aid);
+        added++;
+      }
+    }
+  }
+
+  // Fill remaining slots (up to 10 total) with other actions, excluding mandated ones
+  const otherActions = allAvail.filter(a => !mandatedIds.has(a.id));
+  const slots = Math.max(0, 10 - mandated.length);
+  const general = otherActions.slice(0, slots);
+  return [...mandated, ...general].slice(0, 10);
+}
+
+// ── PRE-ELECTION INTERVIEW QUESTIONS ──────────────────────────────────────────
+const INTERVIEW_QUESTIONS = [
+  { q: 'You invaded Iran without a formal declaration of war. Was that constitutional?',
+    answers:[
+      { text:'I had legal authority under the War Powers Resolution and prior authorizations.', label:'Legal defense', fx:{ approval_r:3, approval_i:-3, approval_d:-6 } },
+      { text:'The Iranian nuclear threat was existential. I acted to protect America.', label:'Security argument', fx:{ approval_r:6, approval_i:-2, approval_d:-8 } },
+    ]},
+  { q: 'Oil is at $162 a barrel. Gas is $6.20. Are American families paying for your war?',
+    answers:[
+      { text:'Eliminating Iran\'s nuclear program was worth this temporary disruption.', label:'Defend decision', fx:{ approval_r:4, approval_i:-5, approval_d:-6 } },
+      { text:'We\'re releasing reserves and increasing domestic production to bring prices down.', label:'Action plan', fx:{ approval_r:2, approval_i:1, approval_d:1 } },
+    ]},
+  { q: '847 American soldiers have died in Iran. When does this end?',
+    answers:[
+      { text:'When the nuclear threat is permanently neutralized and a stable government is in place.', label:'Clear conditions', fx:{ approval_r:5, approval_i:-4, approval_d:-8 } },
+      { text:'We\'re negotiating a path to withdrawal now. We want our troops home.', label:'Exit-oriented', fx:{ approval_r:-2, approval_i:4, approval_d:6 } },
+    ]},
+  { q: 'Eleven countries condemned the invasion at the UN. Have you isolated America?',
+    answers:[
+      { text:'Israel, Saudi Arabia, and the Gulf states support us. That\'s the neighborhood that matters.', label:'Regional framing', fx:{ approval_r:5, approval_i:-3, approval_d:-5 } },
+      { text:'We\'re working to rebuild those relationships. The nuclear threat justified acting alone.', label:'Diplomatic recovery', fx:{ approval_r:2, approval_i:1, approval_d:2 } },
+    ]},
+  { q: 'Your approval is at 38%. The lowest since the start of your presidency. Are you failing?',
+    answers:[
+      { text:'I did what I had to do. Popularity matters less than security.', label:'Defiant', fx:{ approval_r:5, approval_i:-4, approval_d:-5 } },
+      { text:'Tough decisions cost approval short-term. Results will vindicate this.', label:'Long game', fx:{ approval_r:3, approval_i:-1, approval_d:-2 } },
+    ]},
+  { q: 'NATO allies say they\'ve lost confidence in American leadership. Respond.',
+    answers:[
+      { text:'NATO is for European defense, not for restricting American action in the Middle East.', label:'Transactional', fx:{ approval_r:6, approval_i:-3, approval_d:-6 } },
+      { text:'I\'ve spoken with all alliance leaders. The relationships remain strong even amid disagreement.', label:'Alliance defense', fx:{ approval_r:2, approval_i:2, approval_d:3 } },
+    ]},
+];
+
+function runPreElectionInterview(s) {
+  // Pick 3 random questions; always include the Iran-specific one (index 0-2)
+  const shuffled = [...INTERVIEW_QUESTIONS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
 
 // ── UI STATE ──────────────────────────────────────────────────────────────────
 let state = createState();
 let ui = {
-  view: 'game',  // 'game','outcome','midterm','end'
+  view: 'game',  // 'game','outcome','midterm','interview','end'
   selectedCategory: 'ALL',
   lastOutcome: null,
   lastEvents: [],
   pendingMidterm: null,
+  interviewQuestions: [],    // questions for current interview
+  interviewAnswers: [],      // answers given so far
+  interviewDone: false,
 };
 
 function getActionCooldownRemaining(s, action) {
@@ -1143,9 +1323,8 @@ function isActionAvailable(s, action) {
 }
 
 function getAvailableActions(s, category) {
-  let acts = ACTIONS.filter(a => isActionAvailable(s, a));
-  if (category && category !== 'ALL') acts = acts.filter(a => a.cat === category);
-  return acts;
+  // Use priority-aware version that ensures active conflicts have dedicated slots
+  return getAvailableActionsWithPriority(s, category);
 }
 
 function rollOutcome(action, s) {
@@ -1191,7 +1370,7 @@ function executeAction(actionId) {
   // Passive tick
   passiveTick(state);
 
-  // Check midterm (turn 5 = November 2026)
+  // Check midterm (turn 4 = November 2026)
   if (state.turn === 4 && !state.midterm_done) {
     const mtResult = runMidterms(state);
     ui.view = 'midterm';
@@ -1219,8 +1398,16 @@ function executeAction(actionId) {
 }
 
 function advanceFromOutcome() {
-  ui.view = 'game';
   ui.lastOutcome = null;
+  // After the outcome at turn 3, show pre-election interview before midterms
+  if (state.turn === 3 && !ui.interviewDone) {
+    ui.interviewQuestions = runPreElectionInterview(state);
+    ui.interviewAnswers = [];
+    ui.view = 'interview';
+    render();
+    return;
+  }
+  ui.view = 'game';
   render();
 }
 
@@ -1296,6 +1483,7 @@ function successChanceLabel(action, s) {
 function render() {
   const app = document.getElementById('app');
   if (ui.view === 'outcome') { app.innerHTML = renderOutcome(); return; }
+  if (ui.view === 'interview') { app.innerHTML = renderInterview(); return; }
   if (ui.view === 'midterm') { app.innerHTML = renderMidterm(); return; }
   if (ui.view === 'end') { app.innerHTML = renderEnd(); return; }
   app.innerHTML = renderGame();
@@ -1420,11 +1608,12 @@ function renderGame() {
     <div class="conflicts-list">
       ${s.active_conflicts.map(c => {
         const bal = s.conflict_balances[c] || 0;
-        const balColor = bal > 20 ? '#28a745' : bal > -20 ? '#ffc107' : '#dc3545';
-        const balDesc = bal > 30 ? 'US/Allies Winning' : bal > 0 ? 'Slight US Advantage' : bal > -30 ? 'Stalemate' : 'Adversary Gaining';
+        const balColor = bal > 15 ? '#28a745' : bal > -15 ? '#ffc107' : '#dc3545';
+        const balEmoji = bal > 15 ? '🟢' : bal > -15 ? '🟡' : '🔴';
+        const balDesc = bal > 15 ? 'US/allies winning' : bal > -15 ? 'Stalemate' : 'Adversary winning';
         return `<div class="conflict-item">
           <div class="conflict-name">${c}</div>
-          <div class="conflict-balance" style="color:${balColor}">${balDesc} (${bal>0?'+':''}${bal.toFixed(0)})</div>
+          <div class="conflict-balance" style="color:${balColor}">${balEmoji} ${balDesc} (${bal>0?'+':''}${bal.toFixed(0)})</div>
         </div>`;
       }).join('')}
     </div>
@@ -1486,6 +1675,65 @@ function renderOutcome() {
     ${firedEvents && firedEvents.length > 0 ? `<div class="card-title" style="margin-top:12px">Breaking Events</div>${firedEvents.map(e=>`<div class="event-flash"><div class="event-flash-title">⚡ ${e.headline}</div><div class="event-flash-body">${e.body}</div></div>`).join('')}` : ''}
     <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="advanceFromOutcome()">Continue →</button>
   </div></div>`;
+}
+
+// ── PRE-ELECTION INTERVIEW ─────────────────────────────────────────────────────
+function renderInterview() {
+  const questions = ui.interviewQuestions;
+  const answered = ui.interviewAnswers.length;
+  const done = answered >= questions.length;
+
+  if (done) {
+    return `<div class="overlay"><div class="overlay-content">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:28px;font-weight:900;color:#ffc107">📺 INTERVIEW COMPLETE</div>
+        <div style="color:#6c757d;margin-top:6px">The press conference is over. Your answers will shape the midterm narrative.</div>
+      </div>
+      ${ui.interviewAnswers.map((ans,i) => `
+        <div style="background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="color:#6c757d;font-size:11px;margin-bottom:4px">Q${i+1}:</div>
+          <div style="font-size:13px;color:#e8e8f4;margin-bottom:6px">${questions[i].q}</div>
+          <div style="font-size:12px;color:#ffc107">→ "${ans.text}"</div>
+        </div>
+      `).join('')}
+      <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="advanceFromInterview()">Head into the Midterms →</button>
+    </div></div>`;
+  }
+
+  const q = questions[answered];
+  return `<div class="overlay"><div class="overlay-content">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:24px;font-weight:900;color:#ffc107">📺 PRE-MIDTERM PRESS CONFERENCE</div>
+      <div style="color:#6c757d;margin-top:4px">October 2026 · Question ${answered+1} of ${questions.length}</div>
+    </div>
+    <div style="background:#1a1a2e;border:2px solid #ffc107;border-radius:10px;padding:16px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:600;color:#e8e8f4;line-height:1.4">"${q.q}"</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${q.answers.map((ans,i) => `
+        <button onclick="answerInterview(${i})" style="background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4;transition:all 0.2s" onmouseover="this.style.borderColor='#ffc107'" onmouseout="this.style.borderColor='#1e2035'">
+          <div style="font-size:12px;color:#ffc107;margin-bottom:4px">${ans.label}</div>
+          <div style="font-size:13px">"${ans.text}"</div>
+        </button>
+      `).join('')}
+    </div>
+  </div></div>`;
+}
+
+function answerInterview(answerIndex) {
+  const q = ui.interviewQuestions[ui.interviewAnswers.length];
+  const ans = q.answers[answerIndex];
+  ui.interviewAnswers.push(ans);
+  // Apply effects scaled by APPROVAL_SCALE
+  if (ans.fx) applyEffects(state, ans.fx);
+  render();
+}
+
+function advanceFromInterview() {
+  ui.interviewDone = true;
+  ui.view = 'game';
+  addNews(state, '📺 Pre-midterm interview complete — polls update overnight');
+  render();
 }
 
 function renderMidterm() {
