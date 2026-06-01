@@ -1489,14 +1489,19 @@ function renderGame() {
 
   // Available actions
   const catFilter = ui.selectedCategory;
-  const availActs = getAvailableActions(s, catFilter);
+  const isSuggested = (catFilter === 'ALL');
+  // Suggested tab: curated top-10; category tabs: all eligible in that category
+  const allEligible = ACTIONS.filter(a => isActionAvailable(s, a));
+  const availActs = isSuggested
+    ? getAvailableActions(s, 'ALL')
+    : allEligible.filter(a => a.cat === catFilter);
 
   const catCounts = {};
   ['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL','CRIMES'].forEach(c => {
-    catCounts[c] = getAvailableActions(s, c).length;
+    catCounts[c] = allEligible.filter(a => a.cat === c).length;
   });
 
-  const actionCards = availActs.slice(0, 12).map(a => {
+  const actionCards = availActs.map(a => {
     const catLow = a.cat.toLowerCase();
     const cooldown = getActionCooldownRemaining(s, a);
     return `<div class="action-card ${catLow}" onclick="executeAction('${a.id}')">
@@ -1620,10 +1625,11 @@ function renderGame() {
   <div class="card">
     <div class="card-title">Presidential Actions</div>
     <div class="cat-filter">
-      <button class="cat-btn${catFilter==='ALL'?' active':''}" onclick="setCategory('ALL')">All (${getAvailableActions(s,'ALL').length})</button>
-      ${['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL','CRIMES'].map(c =>
-        `<button class="cat-btn ${c.toLowerCase()}${catFilter===c?' active':''}" onclick="setCategory('${c}')">${c} (${catCounts[c]})</button>`
-      ).join('')}
+      <button class="cat-btn${isSuggested?' active':''}" onclick="setCategory('ALL')">⭐ Suggested</button>
+      ${['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL'].map(c => {
+        const labels = {FOREIGN:'🌍 Foreign',MILITARY:'⚔ Military',ECONOMIC:'💰 Economy',DOMESTIC:'🏛 Domestic',POLITICAL:'🎭 Political'};
+        return `<button class="cat-btn ${c.toLowerCase()}${catFilter===c?' active':''}" onclick="setCategory('${c}')">${labels[c]} (${catCounts[c]})</button>`;
+      }).join('')}
     </div>
     ${availActs.length === 0 ? '<div class="no-actions">No actions available in this category right now.</div>' : actionCards}
   </div>
