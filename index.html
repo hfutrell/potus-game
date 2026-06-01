@@ -233,7 +233,10 @@ function createState() {
       'South Korea': 53, // Also Hormuz-dependent
       UN: -12, Turkey: 12, India: 38  // India: large Gulf importer, upset
     },
-    conflict_balances: { 'Ukraine-Russia War': -12, 'Gaza Conflict': 20, 'US-Iran Conflict': 18 }
+    conflict_balances: { 'Ukraine-Russia War': -12, 'Gaza Conflict': 20, 'US-Iran Conflict': 18 },
+    loyalists: { fed: false, doj: false, cia: false, pentagon: false, media: false },
+    advisors: {},
+    get currentMonth() { return MONTHS[(START_MONTH + this.turn) % 12]; }
   };
 }
 
@@ -6363,7 +6366,7 @@ const ACTIONS = [
     name: 'Federal Wildfire Prevention and Suppression Program',
     desc: 'Coordinate federal lands management and fire suppression resources.',
     cat: 'DOMESTIC',
-    condition: s => s.currentMonth in ("June","July","August","September","October"),
+    condition: s => ["June","July","August","September","October"].includes(s.currentMonth),
     cooldown: 10,
     narrative: 'Forest Service gets 10,000 additional firefighters and 50 new air tankers. The prescribed burn program is expanded despite local resistance. This year\'s fire season is bad. It would be worse without this.',
     effects: {
