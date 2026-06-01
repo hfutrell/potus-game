@@ -184,31 +184,32 @@ function createState() {
     turn: 0, gameOver: false, victory: false, endReason: '',
     // Iran war starting conditions: R hawks support it, D/I are skeptical
     // 0.32*78 + 0.35*8 + 0.33*32 = 24.96 + 2.80 + 10.56 = 38.32 ≈ 38.1%
+    // US struck Iran from air/sea March 2026 — NO boots on ground. Hormuz closed.
     approval_r: 78, approval_d: 8, approval_i: 32, approval: 38.1,
     gdp_growth: 1.8,        // War uncertainty slowing growth
     unemployment: 4.2,
     inflation: 3.8,          // As specified — oil shock building
     interest_rate: 5.50,    // Fed tightening due to war inflation risk
     market_confidence: 49,   // Markets rattled by Iran invasion
-    military_readiness: 68,  // Forces deployed — somewhat depleted
+    military_readiness: 74,  // Naval forces deployed; Army NOT committed — no boots on ground
     threat_level: 3,         // HIGH — active Middle East war
     legal_exposure: 25, civil_unrest: 38, congress_support: 50,
     media_favorability: 18,  // Press coverage of war casualties is brutal
     house_seats: 222, senate_seats: 53,
-    budget_health: 58,       // War spending already draining budget
+    budget_health: 65,       // Naval operations less costly than ground invasion
     consecutive_low_market: 0,
     // THREE ACTIVE CONFLICTS at game start
-    active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict', 'Iran-US War'],
+    active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict', 'US-Iran Conflict'],
     completed_actions: new Set(),
     action_cooldowns: {},
     // Starting news briefing reflects Iran war situation
     news_log: [
-      'Day 63 of Iran War — IRGC resistance stiffening in southern provinces',
-      'Oil at $162/barrel — gas prices hit record $6.20 nationwide',
-      'UN Security Council 11-4 condemns invasion; US vetoes resolution',
-      'NATO: most allies refuse to participate; UK gives \'limited intelligence support\'',
-      'Iran proxies attack US bases in Iraq and Syria — 847 US casualties total',
-      'Congress 52-48 funds war continuation; 14 Republicans voted against',
+      '⚓ HORMUZ CLOSED: Iran shuts Strait — 20% of world oil disrupted',
+      'Crude oil $100/barrel — gas $4.40/gallon (up from $3.15 pre-war)',
+      'US airstrikes destroyed Iran nuclear sites and killed leadership — no boots on ground',
+      'UN Security Council 11-4 condemns strikes; US vetoes resolution',
+      'Japan, S.Korea, EU: urgent appeals to reopen Hormuz — supply chains at risk',
+      'Pentagon: 847 US casualties (proxy attacks in Iraq/Syria) — 14 R\'s voted against funding',
     ],
     major_achievements: [], major_disasters: [],
     action_history: [],
@@ -221,7 +222,8 @@ function createState() {
       china_taiwan_tension: true,
       nk_missile_tests: true, border_crisis: true,
       massive_tariffs: false, nato_stressed: true,
-      iran_war: true,       // ALREADY AT WAR WITH IRAN
+      iran_war: true,       // US bombed Iran's nuclear sites from air/sea
+      hormuz_closed: true, // Iran retaliated by closing the Strait of Hormuz
       iran_deal_happened: false,  // No deal — went straight to war
       china_war: false, world_war_3: false,
       economic_collapse: false, shutdown_active: false,
@@ -253,7 +255,7 @@ function createState() {
     conflict_balances: {
       'Ukraine-Russia War': -12,
       'Gaza Conflict': 20,
-      'Iran-US War': 22    // US achieved early objectives but resistance building
+      'US-Iran Conflict': 18    // US achieved early objectives but resistance building
     },
     scotus_conservative: 6
   };
@@ -440,6 +442,17 @@ function passiveTick(s) {
     syncApproval(s);
   }
 
+  // Hormuz closure — ongoing oil supply disruption from Iran retaliation
+  if (s.flags.hormuz_closed) {
+    s.inflation = clamp(s.inflation + 0.06, -2, 40);
+    s.market_confidence = clamp(s.market_confidence - 0.12, 0, 100);
+    if (s.relations['Japan']) s.relations['Japan'] -= 0.08;
+    if (s.relations['South Korea']) s.relations['South Korea'] -= 0.08;
+    if (s.relations['EU']) s.relations['EU'] -= 0.06;
+    if (s.relations['India']) s.relations['India'] -= 0.06;
+    if (s.relations['Saudi Arabia']) s.relations['Saudi Arabia'] = Math.min(100, s.relations['Saudi Arabia'] + 0.05);
+  }
+
   // Economic collapse via sustained low market
   if (s.market_confidence < 15) s.consecutive_low_market++;
   else s.consecutive_low_market = 0;
@@ -456,7 +469,7 @@ function passiveTick(s) {
       if (s.completed_actions.has('cut_ukraine_aid')) adv += 0.3;
       if (s.completed_actions.has('double_ukraine_aid')) adv -= 0.3;
       s.conflict_balances[c] = clamp(s.conflict_balances[c] + adv, -90, 90);
-    } else if (c === 'Iran-US War') {
+    } else if (c === 'US-Iran Conflict' || c === 'Iran-US War') {
       // US has air superiority but ground resistance
       let adv = rnd(-0.5, 0.5);
       if (s.completed_actions.has('iran_war_proxy_strike')) adv += 0.2;
@@ -1263,7 +1276,7 @@ const INTERVIEW_QUESTIONS = [
       { text:'I had legal authority under the War Powers Resolution and prior authorizations.', label:'Legal defense', fx:{ approval_r:3, approval_i:-3, approval_d:-6 } },
       { text:'The Iranian nuclear threat was existential. I acted to protect America.', label:'Security argument', fx:{ approval_r:6, approval_i:-2, approval_d:-8 } },
     ]},
-  { q: 'Oil is at $162 a barrel. Gas is $6.20. Are American families paying for your war?',
+  { q: 'Crude oil is at $100 a barrel. Gas is $4.40, up from $3.15. The Strait of Hormuz is closed. Are American families paying for your decision to bomb Iran?',
     answers:[
       { text:'Eliminating Iran\'s nuclear program was worth this temporary disruption.', label:'Defend decision', fx:{ approval_r:4, approval_i:-5, approval_d:-6 } },
       { text:'We\'re releasing reserves and increasing domestic production to bring prices down.', label:'Action plan', fx:{ approval_r:2, approval_i:1, approval_d:1 } },
@@ -1722,7 +1735,57 @@ function renderInterview() {
 
 function answerInterview(answerIndex) {
   const q = ui.interviewQuestions[ui.interviewAnswers.length];
-  const ans = q.answers[answerIndex];
+  const ans = q.answers[answerIndex
+  // ── STRAIT OF HORMUZ CRISIS ACTIONS ──────────────────────────────────────
+  // US bombed Iran March 2026 (no boots on ground). Iran closed Hormuz in retaliation.
+  // Gas at $4.40, crude at $100/barrel. Player must manage Hormuz crisis.
+
+  { id:'reopen_hormuz', name:'Demand Iran Reopen the Strait of Hormuz', desc:'Issue ultimatum: reopen Hormuz within 72 hours or face additional strikes.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
+    outcomes:[
+      { prob: s => Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
+        label:'HORMUZ REOPENS', style:'success',
+        narrative:'Iran blinks. After 72 hours of naval positioning, tanker traffic resumes. Oil drops $18/barrel. Japan and South Korea send formal relief. Gas prices begin falling.',
+        effects:{ 'flag:hormuz_closed':false, inflation:-0.8, market_confidence:10, approval_r:8, approval_i:6, approval_d:2, 'rel:Japan':5, 'rel:South Korea':5, 'rel:EU':3 } },
+      { prob: s => 1 - Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
+        label:'IRAN REFUSES', style:'failure',
+        narrative:'Tehran calls the ultimatum "imperialist theater." The Strait stays closed. Your options: escort convoys, accept the closure, or escalate.',
+        effects:{ approval_r:-2, approval_i:-3 } }
+    ]},
+
+  { id:'tanker_escort', name:'US Navy Tanker Escort Through Hormuz', desc:'Deploy carrier group to escort allied oil tankers through the Strait.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
+    narrative:'Two carrier strike groups form a corridor through the Strait. Allied tankers move in convoys under F/A-18 air cover. It's not a full solution — but oil is flowing. Japan and South Korea are grateful.',
+    effects:{ approval_r:6, approval_i:5, approval_d:2, 'rel:Japan':8, 'rel:South Korea':8, 'rel:EU':6, military_readiness:-5, budget_health:-4, inflation:-0.4 } },
+
+  { id:'hormuz_coalition', name:'International Coalition: Demand Hormuz Reopening', desc:'Build G7+Gulf States coalition demanding immediate Hormuz reopening.',
+    cat:'FOREIGN', condition: s => s.flags.hormuz_closed, oneTime:true,
+    narrative:'27 nations co-sign a formal demand for Hormuz reopening. The UN General Assembly votes 119-12. China abstains but doesn't veto. Iran is diplomatically isolated but defiant.',
+    effects:{ 'rel:Japan':6, 'rel:EU':6, 'rel:India':5, 'rel:South Korea':5, approval_d:5, approval_i:4, approval_r:2 } },
+
+  { id:'naval_show_force', name:'Deploy Three Carrier Groups to Persian Gulf', desc:'Overwhelming naval show of force — signal readiness to forcibly reopen Hormuz.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed || s.flags.iran_war, oneTime:true,
+    narrative:'Three carrier strike groups. 120 aircraft. The largest US naval presence in the Gulf since 1991. Iran's Supreme Leader calls it "desperate." Your NSA calls it leverage.',
+    effects:{ approval_r:7, approval_i:2, approval_d:-3, military_readiness:-7, budget_health:-5, 'rel:Iran':-10, 'rel:Russia':-5, 'rel:China':-5 } },
+
+  { id:'iran_proxy_strike', name:'Strike Iran Proxy Forces in Iraq and Syria', desc:'Targeted airstrikes against Hezbollah and IRGC proxies attacking US bases.',
+    cat:'MILITARY', condition: s => s.flags.iran_war, cooldown:3,
+    narrative:'US airstrikes hit 14 proxy command centers in Iraq and Syria. 147 IRGC-affiliated fighters killed. Proxy attacks slow. Your base approves. The UN does not.',
+    effects:{ approval_r:7, approval_i:2, approval_d:-4, military_readiness:-4, 'rel:Iran':-5, 'rel:UN':-4 } },
+
+  { id:'iran_ceasefire_naval', name:'Seek Ceasefire: Airstrikes for Hormuz Deal', desc:'Via Oman: offer to suspend airstrikes if Iran reopens Hormuz and allows inspections.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war || s.flags.hormuz_closed, cooldown:4,
+    outcomes:[
+      { prob: s => Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
+        label:'DEAL REACHED', style:'success',
+        narrative:'Oman delivers the framework: US suspends airstrikes, Iran reopens Hormuz, IAEA resumes inspections of what's left. The nuclear program is gone. The Strait opens. Oil falls to $82.',
+        effects:{ 'flag:iran_war':false, 'flag:hormuz_closed':false, 'rel:Iran':20, inflation:-1.5, market_confidence:15, approval_d:8, approval_i:10, approval_r:-3 } },
+      { prob: s => 1 - Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
+        label:'IRAN REFUSES', style:'failure',
+        narrative:'"They destroyed our facilities and killed our leaders. And now they want talks?" Tehran says no.',
+        effects:{ approval_i:-3, approval_r:-2 } }
+    ]},
+];
   ui.interviewAnswers.push(ans);
   // Apply effects scaled by APPROVAL_SCALE
   if (ans.fx) applyEffects(state, ans.fx);
