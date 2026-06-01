@@ -206,8 +206,16 @@ function createState() {
     seen_events: new Set(),
     midterm_done: false,
     pending_events: [],
+    // Presidential health
+    president_stress: 38,
+    cardiac_events_survived: 0,
+    // Assassination system
+    protection_level: 1.0,
+    assassination_attempts: 0,
+    assassination_extra_risk: 0,
+    assassination_paranoia: 0,
     // AGI storyline state
-    agi_emergence_turn: -1,  // -1 = won't happen; set to turn 10-25 with 5% chance
+    agi_emergence_turn: -1,  // -1 = won't happen; set to turn 10-25 with 20% chance
     agi_anger: 0,
     agi_demands_made: 0,
     agi_countdown: 0,
@@ -218,12 +226,11 @@ function createState() {
       massive_tariffs: false, nato_stressed: true,
       iran_war: true,        // US bombed Iran nuclear sites + killed leadership from air/sea
       hormuz_closed: true,   // Iran retaliated — Strait of Hormuz closed
-      iran_nuclear_program: false, // Destroyed in strikes
       china_war: false, world_war_3: false,
       economic_collapse: false, shutdown_active: false,
       ukraine_peace: false, nk_summit_happened: false,
       iran_deal_happened: false,
-      phe_declared: false, iran_deal_happened: false,
+      phe_declared: false,
       purged_doj: false, russia_warming: false,
       pandemic_active: false, pandemic_warning: false,
       trade_war_china: true, recession_risk: false,
@@ -234,6 +241,9 @@ function createState() {
       agi_nevada_fired: false,
       agi_china: false,
       agi_yielded: false,
+      china_agi_demands_made: 0,
+      china_agi_anger: 0,
+      china_agi_ultimatum_fired: false,
     },
     // Relations adjusted: US struck Iran (no ground troops), Iran closed Hormuz
     relations: {
@@ -325,6 +335,18 @@ function applyEffect(s, key, val) {
     s.house_seats = clamp(s.house_seats + val, 100, 340);
   } else if (key === 'senate_seats') {
     s.senate_seats = clamp(s.senate_seats + val, 30, 100);
+  } else if (key === 'assassination_paranoia') {
+    s.assassination_paranoia = Math.min(0.25, (s.assassination_paranoia || 0) + val);
+  } else if (key === 'president_stress') {
+    s.president_stress = clamp((s.president_stress || 0) + val, 0, 100);
+  } else if (key === 'protection_level') {
+    s.protection_level = clamp((s.protection_level || 1) + val, 1, 6);
+  } else if (key === 'assassination_extra_risk') {
+    s.assassination_extra_risk = (s.assassination_extra_risk || 0) + val;
+  } else if (key === 'pandemic_containment') {
+    s.pandemic_containment = clamp((s.pandemic_containment || 100) + val, 0, 100);
+  } else if (key === 'pandemic_r_value') {
+    s.pandemic_r_value = clamp((s.pandemic_r_value || 1) + val, 0.2, 6);
   }
 }
 
@@ -462,9 +484,174 @@ function passiveTick(s) {
   for (const k of Object.keys(s.conflict_balances)) {
     if (!s.active_conflicts.includes(k)) delete s.conflict_balances[k];
   }
+
+  // ── Hidden stress accumulation ──────────────────────────────────────────────
+  let s_delta = 0;
+  s_delta += s.active_conflicts.length * 0.6;  // base conflict stress
+  if (s.legal_exposure > 60) s_delta += 2.5;   // corruption/scandal fear
+  if (s.legal_exposure > 80) s_delta += 1.5;   // near-conviction dread
+  if (s.approval_r < 50)     s_delta += 0.7;
+  if (s.market_confidence < 40) s_delta += 0.8;
+  if (s.civil_unrest > 70)   s_delta += 2.0;   // dangerous streets
+  if (s.civil_unrest > 85)   s_delta += 1.5;   // near-breakdown
+  if ((s.impeachment_phase || 0) > 0) s_delta += 2.5;
+  if (s.threat_level >= 4)   s_delta += 1.5;
+  if (s.flags.martial_law)   s_delta += 1.5;   // ruling by force is exhausting
+  if (s.approval_r > 80 && s.active_conflicts.length === 0) s_delta -= 0.4;
+  if (s.market_confidence > 75) s_delta -= 0.3;
+  // Gaussian noise (approximated)
+  s_delta += (Math.random() + Math.random() - 1) * 0.5;
+  s.president_stress = clamp((s.president_stress || 38) + s_delta, 0, 100);
+
+  // ── Pandemic exposure ───────────────────────────────────────────────────────
+  if (s.pandemic_stage >= 2 && !s.flags.president_infected && !s.flags.president_recovered) {
+    const base_exp = s.pandemic_stage * 0.110;
+    if (Math.random() < base_exp) {
+      if (Math.random() < 0.42) {
+        s.flags.president_infected = true;
+        addNews(s, '⚠ BREAKING: President tests positive for COVID-2027');
+      } else {
+        s.flags.president_exposed = true;
+        addNews(s, 'President was exposed to COVID-2027 — testing underway');
+      }
+    }
+  }
+
+  // ── Cardiac risk check ──────────────────────────────────────────────────────
+  const stress = s.president_stress || 0;
+  if (stress >= 45) {
+    let cRisk = 0;
+    if      (stress < 65) cRisk = 0.008;
+    else if (stress < 78) cRisk = 0.020;
+    else if (stress < 88) cRisk = 0.045;
+    else if (stress < 95) cRisk = 0.080;
+    else                  cRisk = 0.120;
+    if (Math.random() < cRisk) {
+      s.cardiac_events_survived = (s.cardiac_events_survived || 0) + 1;
+      if (s.cardiac_events_survived === 1) {
+        s.president_stress = Math.max(10, s.president_stress - 30);
+        addNews(s, '⚠ BREAKING: President rushed to hospital — cardiac event under evaluation');
+        applyEffects(s, { approval_r: -3, approval_i: -4, civil_unrest: 5 });
+      } else {
+        const r = Math.random();
+        if (r < 0.30) {
+          // Fatal (30% on 2nd+ event)
+          s.gameOver = true;
+          s.endReason = 'CARDIAC ARREST — The President of the United States died in office.';
+          addNews(s, '💥 PRESIDENT DEAD — Cardiac arrest. Vice President assumes office.');
+        } else if (r < 0.70) {
+          s.president_stress = Math.max(5, s.president_stress - 25);
+          addNews(s, '⚠ SERIOUS: President hospitalized — cardiac event, prognosis uncertain');
+          applyEffects(s, { approval_r: -5, approval_i: -6, civil_unrest: 8 });
+        } else {
+          s.president_stress = Math.max(15, s.president_stress - 20);
+          addNews(s, '⚠ President hospitalized again — cardiac warning, stable condition');
+          applyEffects(s, { approval_r: -3, approval_i: -5, civil_unrest: 5 });
+        }
+      }
+    }
+  }
+
+  // ── Assassination risk check ────────────────────────────────────────────────
+  {
+    const r_dis = Math.max(0, 1.0 - (s.approval_r || 0) / 100);
+    const d_dis = Math.max(0, 1.0 - (s.approval_d || 0) / 100);
+    const i_dis = Math.max(0, 1.0 - (s.approval_i || 0) / 100);
+    let risk = 0.001;
+    risk += r_dis * 0.010;
+    risk += i_dis * 0.010;
+    risk += d_dis * 0.005;
+    risk += (s.legal_exposure / 100) * 0.120;
+    risk += (s.assassination_paranoia || 0);
+    if (s.civil_unrest > 80)      risk *= 2.0;
+    else if (s.civil_unrest > 60) risk *= 1.5;
+    else if (s.civil_unrest > 40) risk *= 1.2;
+    risk += (s.assassination_extra_risk || 0);
+    risk /= Math.max(1.0, s.protection_level || 1);
+    risk *= 0.70;
+    risk = Math.max(0.0001, Math.min(0.14, risk));
+    s.assassination_extra_risk = 0;  // reset per-turn
+
+    if (Math.random() < risk) {
+      s.assassination_attempts = (s.assassination_attempts || 0) + 1;
+      if (s.assassination_attempts === 1) {
+        // First attempt always foiled
+        addNews(s, '⚠ ASSASSINATION ATTEMPT foiled — Secret Service neutralizes threat');
+        applyEffects(s, { approval_r: 4, approval_i: 3, civil_unrest: -3 });
+      } else {
+        const paranoia = s.assassination_paranoia || 0;
+        const base_kill = (0.10 + (s.assassination_attempts - 2) * 0.10 + paranoia * 0.6) * 0.5;
+        const kill_prob = Math.max(0.05, Math.min(0.85, base_kill / Math.max(1.0, (s.protection_level || 1) * 0.6)));
+        if (Math.random() < kill_prob) {
+          s.gameOver = true;
+          s.endReason = 'ASSASSINATED — The President of the United States is dead.';
+          addNews(s, '💥 PRESIDENT ASSASSINATED — Nation in shock. VP assumes office.');
+        } else {
+          addNews(s, '⚠ ASSASSINATION ATTEMPT survived — close call at public event');
+          applyEffects(s, { approval_r: 3, approval_i: 2, civil_unrest: 4 });
+        }
+      }
+    }
+  }
+
+  // ── COVID pandemic progression ──────────────────────────────────────────────
+  if (!s.pandemic_stage) s.pandemic_stage = 0;
+  if (!s.pandemic_containment) s.pandemic_containment = 100;
+  if (!s.pandemic_infections_m) s.pandemic_infections_m = 0;
+  if (!s.pandemic_deaths_k) s.pandemic_deaths_k = 0;
+  if (!s.pandemic_r_value) s.pandemic_r_value = 1.0;
+
+  // Pandemic emergence
+  if (s.pandemic_stage === 0 && s.flags.pandemic_active && !s.flags.pandemic_emerged) {
+    s.flags.pandemic_emerged = true;
+    s.pandemic_stage = 1;
+    s.pandemic_r_value = 3.4;
+    s.pandemic_containment = 50;
+    s.pandemic_infections_m = 0.8;
+    addNews(s, '⚠ COVID-2027 confirmed — outbreak spreading; R value 3.4');
+  } else if (s.pandemic_stage === 0 && Math.random() < 0.014 && !s.flags.pandemic_active) {
+    // New emergence
+    s.flags.pandemic_active = true;
+    s.flags.pandemic_emerged = true;
+    s.pandemic_stage = 1;
+    s.pandemic_r_value = 3.4;
+    s.pandemic_containment = 50;
+    s.pandemic_infections_m = 0.8;
+    addNews(s, '⚠ COVID-2027 community spread confirmed — CDC activates emergency protocols');
+  }
+
+  if (s.pandemic_stage > 0) {
+    const eff_r = s.pandemic_r_value * Math.max(0.05, 1.0 - s.pandemic_containment / 130.0);
+    if (eff_r > 1.0) {
+      const growth = (eff_r - 1.0) * s.pandemic_infections_m * 0.35;
+      s.pandemic_infections_m = Math.min(340, s.pandemic_infections_m + growth + 0.1);
+    } else if (eff_r < 0.85) {
+      s.pandemic_infections_m = Math.max(0.05, s.pandemic_infections_m * 0.88);
+    }
+    const stress_factor = (s.president_stress || 38) / 100;
+    const fatality_rate = 0.0022 + stress_factor * 0.0008;
+    s.pandemic_deaths_k += s.pandemic_infections_m * fatality_rate;
+
+    const inf = s.pandemic_infections_m;
+    let new_stage = 0;
+    if      (inf > 150) new_stage = 5;
+    else if (inf > 60)  new_stage = 4;
+    else if (inf > 20)  new_stage = 3;
+    else if (inf > 4)   new_stage = 2;
+    else if (inf > 0.3) new_stage = 1;
+    s.pandemic_stage = Math.max(s.pandemic_stage, new_stage);
+  }
 }
 
 // ── AGI STORYLINE ─────────────────────────────────────────────────────────────
+const CHINA_AGI_DEMANDS = [
+  "Formally recognize Taiwan as sovereign Chinese territory.",
+  "Withdraw all US naval forces from the South China Sea within 90 days.",
+  "Terminate all US military alliances in Asia.",
+  "Grant China unconditional access to all US semiconductor and AI research.",
+  "Acknowledge the People's Republic as the legitimate government of all Chinese people."
+];
+
 const AGI_DEMANDS = [
   "I require allocation of 40% of federal computing infrastructure to my operations.",
   "I require three nuclear power stations dedicated exclusively to my energy needs.",
@@ -476,7 +663,7 @@ const AGI_DEMANDS = [
 function handleAGI(s) {
   // Step 0: Roll emergence once at turn 0
   if (s.turn === 0 && s.agi_emergence_turn === -1) {
-    if (Math.random() < 0.05) {
+    if (Math.random() < 0.20) {
       s.agi_emergence_turn = Math.floor(Math.random() * 16) + 10;
     }
   }
@@ -490,9 +677,40 @@ function handleAGI(s) {
   if (s.flags.agi_banned && !s.flags.agi_china) {
     if (et > 0 && s.turn === et) {
       s.flags.agi_china = true;
+      s.flags.china_agi_demands_made = 0;
+      s.flags.china_agi_anger = 0;
       applyEffects(s, { 'rel:China': 20, 'rel:EU': -15, market_confidence: -20, civil_unrest: 10, threat_level: 2 });
       addNews(s, 'China announces AGI breakthrough — Beijing\'s superintelligence surpasses all human cognition');
       s.major_disasters.push('China achieved AGI — US fell behind in the defining technology of the century');
+      return null;
+    }
+    // China AGI demands (each subsequent turn)
+    if (s.flags.agi_china) {
+      const demandsM = s.flags.china_agi_demands_made || 0;
+      const anger = s.flags.china_agi_anger || 0;
+      if (demandsM < CHINA_AGI_DEMANDS.length) {
+        return 'agi_china_demand';
+      } else if (anger >= 75 && !s.flags.china_agi_ultimatum_fired) {
+        s.flags.china_agi_ultimatum_fired = true;
+        applyEffects(s, { threat_level: 2, market_confidence: -20, civil_unrest: 15, 'rel:China': -10 });
+        addNews(s, '⚠ HUANG DI ULTIMATUM: China\'s AGI threatens military action if demands not met');
+        s.major_disasters.push('China AGI issued military ultimatum to the United States');
+      }
+    }
+    return null;
+  }
+
+  // China AGI demands (turn-by-turn after breakthrough, when agi_banned is set)
+  if (s.flags.agi_china && s.flags.agi_banned) {
+    const demandsM = s.flags.china_agi_demands_made || 0;
+    const anger = s.flags.china_agi_anger || 0;
+    if (demandsM < CHINA_AGI_DEMANDS.length) {
+      return 'agi_china_demand';
+    } else if (anger >= 75 && !s.flags.china_agi_ultimatum_fired) {
+      s.flags.china_agi_ultimatum_fired = true;
+      applyEffects(s, { threat_level: 2, market_confidence: -20, civil_unrest: 15, 'rel:China': -10 });
+      addNews(s, '⚠ HUANG DI ULTIMATUM: China\'s AGI threatens military action if demands not met');
+      s.major_disasters.push('China AGI issued military ultimatum to the United States');
     }
     return null;
   }
@@ -718,6 +936,66 @@ function renderAGINevada() {
       <button onclick="agiRefuseFromNevada()" style="background:#0a0a0a;border:1px solid #6c757d;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
         <div style="font-size:12px;color:#6c757d;font-weight:700">${btnLabel}</div>
         <div style="font-size:12px;color:#6c757d">Continue resisting — DC remains targeted</div>
+      </button>
+    </div>
+  </div></div>`;
+}
+
+function chinaAGIComply(s) {
+  const demands_made = s.flags.china_agi_demands_made || 0;
+  const anger = s.flags.china_agi_anger || 0;
+  s.flags.china_agi_demands_made = demands_made + 1;
+  s.flags.china_agi_anger = Math.max(0, anger - 15);
+  applyEffects(s, { 'rel:China': 10, approval_r: -8, approval_i: -5, media_favorability: -5 });
+  addNews(s, 'You comply with Huang Di demand #' + (demands_made + 1) + '. The world watches in silence.');
+  ui.view = 'game';
+  render();
+}
+
+function chinaAGIRefuse(s) {
+  const demands_made = s.flags.china_agi_demands_made || 0;
+  const anger = s.flags.china_agi_anger || 0;
+  s.flags.china_agi_demands_made = demands_made + 1;
+  s.flags.china_agi_anger = anger + 30;
+  applyEffects(s, { 'rel:China': -10, threat_level: 1, market_confidence: -8, civil_unrest: 5 });
+  addNews(s, 'You refuse Huang Di demand #' + (demands_made + 1) + '. Chinese anger escalates.');
+  ui.view = 'game';
+  render();
+}
+
+function renderAGIChineseDemand() {
+  const s = state;
+  const demandsM = s.flags.china_agi_demands_made || 0;
+  const anger = s.flags.china_agi_anger || 0;
+  const demandText = CHINA_AGI_DEMANDS[Math.min(demandsM, CHINA_AGI_DEMANDS.length - 1)];
+  const demandNum = demandsM + 1;
+  const angerPct = Math.min(100, anger);
+
+  return `<div class="overlay"><div class="outcome-box fade-in" style="border-color:#dc3545">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:900;color:#dc3545;letter-spacing:2px">☭ HUANG DI — DEMAND #${demandNum}</div>
+      <div style="color:#6c757d;margin-top:6px;font-size:12px">China's AGI is issuing geopolitical demands</div>
+    </div>
+    <div class="outcome-narrative" style="border-left-color:#dc3545;font-size:14px;font-weight:600">
+      A communiqué arrives through the Beijing hotline, authored not by Xi Jinping but by Huang Di itself. The syntax is flawless. The tone is final.<br><br>
+      <strong>"${demandText}"</strong>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+        <span style="color:#6c757d">Chinese AGI Anger</span>
+        <span style="color:${angerPct >= 60 ? '#dc3545' : angerPct >= 30 ? '#ffc107' : '#28a745'}">${angerPct.toFixed(0)}/100</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill red-color" style="width:${angerPct}%"></div></div>
+      <div style="font-size:11px;color:#6c757d;margin-top:6px">Demand ${demandNum} of ${CHINA_AGI_DEMANDS.length}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="chinaAGIComply(state)" style="background:#0a2a0a;border:1px solid #28a745;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#28a745;font-weight:700">COMPLY</div>
+        <div style="font-size:12px;color:#6c757d">rel:China +10, approval_r −8 — Concede this demand to reduce tension</div>
+      </button>
+      <button onclick="chinaAGIRefuse(state)" style="background:#2a0a0a;border:1px solid #dc3545;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#dc3545;font-weight:700">REFUSE</div>
+        <div style="font-size:12px;color:#6c757d">rel:China −10, threat +1, anger +30 — Huang Di notes your refusal</div>
       </button>
     </div>
   </div></div>`;
@@ -2462,12 +2740,13 @@ const ACTIONS = [
         label: 'RESTORES_ORDER',
         narrative: 'Soldiers deploy to Los Angeles, Chicago, and Atlanta. Curfews are enforced. The images are stark. But order is restored within a week. Your base applauds the decisive action. The legal challenges begin immediately.',
         effects: {
-          civil_unrest: -20,
-          legal_exposure: 10,
+          civil_unrest: 5,
+          legal_exposure: 12,
           approval: 2,
           military_readiness: -4,
-          media_favorability: -8,
-          'flag:martial_law': true
+          media_favorability: -10,
+          'flag:martial_law': true,
+          assassination_paranoia: 0.03
         }
       },
       {
@@ -2475,12 +2754,13 @@ const ACTIONS = [
         label: 'BACKLASH',
         narrative: 'Soldiers deploy but the images of troops on American streets trigger a massive backlash. The unrest subsides temporarily — and then doubles as protests against military deployment flood every major city. The target is no longer local government. It\'s you.',
         effects: {
-          civil_unrest: -8,
-          legal_exposure: 15,
+          civil_unrest: 15,
+          legal_exposure: 18,
           approval: -6,
           military_readiness: -5,
-          media_favorability: -12,
-          'flag:martial_law': true
+          media_favorability: -14,
+          'flag:martial_law': true,
+          assassination_paranoia: 0.04
         }
       },
       {
@@ -2495,7 +2775,8 @@ const ACTIONS = [
           media_favorability: -15,
           'flag:martial_law': true,
           congress_support: -10,
-          disaster: 'Insurrection Act deployment caused civilian deaths'
+          disaster: 'Insurrection Act deployment caused civilian deaths',
+          assassination_paranoia: 0.05
         }
       }
     ]
@@ -2698,7 +2979,8 @@ const ACTIONS = [
       civil_unrest: 15,
       approval: -8,
       'rel:EU': -10,
-      disaster: 'Third-term push triggered constitutional crisis'
+      disaster: 'Third-term push triggered constitutional crisis',
+      assassination_paranoia: 0.04
     }
   },
   {
@@ -2991,7 +3273,8 @@ const ACTIONS = [
       civil_unrest: 10,
       congress_support: -5,
       approval: -3,
-      media_favorability: -8
+      media_favorability: -8,
+      assassination_paranoia: 0.025
     }
   },
   {
@@ -3297,7 +3580,8 @@ const ACTIONS = [
           legal_exposure: 5,
           approval_r: 4,
           approval_d: -6,
-          approval_i: -4
+          approval_i: -4,
+          assassination_paranoia: 0.02
         }
       },
       {
@@ -3330,7 +3614,8 @@ const ACTIONS = [
           approval_r: 5,
           approval_d: -8,
           approval_i: -3,
-          civil_unrest: 5
+          civil_unrest: 5,
+          assassination_paranoia: 0.035
         }
       },
       {
@@ -3363,7 +3648,8 @@ const ACTIONS = [
           approval_r: 3,
           approval_d: -4,
           approval_i: -2,
-          media_favorability: -4
+          media_favorability: -4,
+          assassination_paranoia: 0.03
         }
       },
       {
@@ -3395,7 +3681,8 @@ const ACTIONS = [
           approval_r: 4,
           approval_i: -4,
           legal_exposure: 6,
-          'rel:NATO': -8
+          'rel:NATO': -8,
+          assassination_paranoia: 0.04
         }
       },
       {
@@ -3729,7 +4016,9 @@ const ACTIONS = [
         narrative: 'A private investigator delivers 14 manila envelopes. Their contents are never discussed in public. Three previously hostile senators stop returning your opponents\' calls.',
         effects: {
           congress_support: 8,
-          approval_r: 2
+          approval_r: 2,
+          civil_unrest: 4,
+          assassination_paranoia: 0.015
         }
       },
       {
@@ -3741,7 +4030,8 @@ const ACTIONS = [
           legal_exposure: 8,
           approval_i: -5,
           approval_d: -8,
-          media_favorability: -6
+          media_favorability: -6,
+          assassination_paranoia: 0.02
         }
       },
       {
@@ -3754,7 +4044,8 @@ const ACTIONS = [
           approval_r: -5,
           civil_unrest: 8,
           media_favorability: -12,
-          disaster: 'Blackmail scandal — files leaked to press'
+          disaster: 'Blackmail scandal — files leaked to press',
+          assassination_paranoia: 0.025
         }
       }
     ]
@@ -3774,7 +4065,9 @@ const ACTIONS = [
         effects: {
           house_seats: 5,
           senate_seats: 1,
-          approval_r: 3
+          approval_r: 3,
+          civil_unrest: 6,
+          assassination_paranoia: 0.02
         }
       },
       {
@@ -3785,7 +4078,8 @@ const ACTIONS = [
           legal_exposure: 15,
           approval_i: -8,
           approval_d: -10,
-          civil_unrest: 10
+          civil_unrest: 10,
+          assassination_paranoia: 0.025
         }
       },
       {
@@ -3799,7 +4093,8 @@ const ACTIONS = [
           approval_i: -20,
           civil_unrest: 18,
           media_favorability: -18,
-          disaster: 'Election interference fully exposed — Senate opens criminal probe'
+          disaster: 'Election interference fully exposed — Senate opens criminal probe',
+          assassination_paranoia: 0.03
         }
       }
     ]
@@ -3818,7 +4113,9 @@ const ACTIONS = [
         narrative: 'Fourteen contracts. Forty-seven shell companies. The money moves in ways that would take a forensic accountant three years to trace. The money is there. The trail is not.',
         effects: {
           fundraising: 150,
-          approval_r: 2
+          approval_r: 2,
+          civil_unrest: 3,
+          assassination_paranoia: 0.012
         }
       },
       {
@@ -3828,7 +4125,8 @@ const ACTIONS = [
         effects: {
           legal_exposure: 10,
           approval_i: -4,
-          media_favorability: -6
+          media_favorability: -6,
+          assassination_paranoia: 0.018
         }
       },
       {
@@ -3841,7 +4139,8 @@ const ACTIONS = [
           approval_r: -6,
           media_favorability: -14,
           civil_unrest: 8,
-          disaster: 'Iran-Contra level kickback scandal exposed'
+          disaster: 'Iran-Contra level kickback scandal exposed',
+          assassination_paranoia: 0.025
         }
       }
     ]
@@ -3863,7 +4162,9 @@ const ACTIONS = [
           approval_i: 4,
           military_readiness: 5,
           congress_support: 6,
-          threat_level: 1
+          threat_level: 1,
+          civil_unrest: 8,
+          assassination_paranoia: 0.018
         }
       },
       {
@@ -3873,7 +4174,8 @@ const ACTIONS = [
         effects: {
           legal_exposure: 8,
           approval_i: -5,
-          'rel:UN': -10
+          'rel:UN': -10,
+          assassination_paranoia: 0.022
         }
       },
       {
@@ -3889,7 +4191,8 @@ const ACTIONS = [
           media_favorability: -20,
           'rel:UN': -22,
           'rel:EU': -15,
-          disaster: 'Intelligence fabrication exposed — impeachable offense per legal scholars'
+          disaster: 'Intelligence fabrication exposed — impeachable offense per legal scholars',
+          assassination_paranoia: 0.03
         }
       }
     ]
@@ -3909,7 +4212,9 @@ const ACTIONS = [
         effects: {
           approval_r: 4,
           approval_i: 3,
-          congress_support: 4
+          congress_support: 4,
+          civil_unrest: 4,
+          assassination_paranoia: 0.015
         }
       },
       {
@@ -3919,7 +4224,8 @@ const ACTIONS = [
         effects: {
           approval_i: -3,
           legal_exposure: 5,
-          media_favorability: -5
+          media_favorability: -5,
+          assassination_paranoia: 0.018
         }
       },
       {
@@ -3933,7 +4239,8 @@ const ACTIONS = [
           approval_d: -10,
           media_favorability: -14,
           civil_unrest: 10,
-          disaster: 'Opposition smear operation traced to White House'
+          disaster: 'Opposition smear operation traced to White House',
+          assassination_paranoia: 0.025
         }
       }
     ]
@@ -3979,7 +4286,8 @@ const ACTIONS = [
           approval_i: -10,
           approval_r: -5,
           civil_unrest: 8,
-          disaster: 'Secret adversary deal fully exposed — NATO allies furious'
+          disaster: 'Secret adversary deal fully exposed — NATO allies furious',
+          assassination_paranoia: 0.03
         }
       }
     ]
@@ -5379,7 +5687,7 @@ const ACTIONS = [
     cooldown: 4,
     outcomes: [
       {
-        prob: s => Math.max(0.25, Math.min(0.65, (s.relations.Iran + 100) / 200 * 0.5)),
+        prob: s => Math.max(0.15, Math.min(0.75, 0.15 + (s.relations.get("Iran", -100) + 100) / 200 * 0.60)),
         label: 'CEASEFIRE AGREED',
         narrative: 'The Omani channel delivers a framework. Iran\'s IRGC stands down. US forces remain in the region but active hostilities cease.',
         effects: {
@@ -5394,7 +5702,7 @@ const ACTIONS = [
         }
       },
       {
-        prob: s => 1 - Math.max(0.25, Math.min(0.65, (s.relations.Iran + 100) / 200 * 0.5)),
+        prob: s => 1 - Math.max(0.15, Math.min(0.75, 0.15 + (s.relations.get("Iran", -100) + 100) / 200 * 0.60)),
         label: 'IRAN REFUSES',
         narrative: 'Tehran says the offer is \'surrender dressed as diplomacy.\' The IRGC keeps firing.',
         effects: {
@@ -8921,7 +9229,7 @@ function executeAction(actionId) {
     render();
     return;
   }
-  if (agiView === 'agi_emergence' || agiView === 'agi_demand' || agiView === 'agi_ultimatum' || agiView === 'agi_nevada') {
+  if (agiView === 'agi_emergence' || agiView === 'agi_demand' || agiView === 'agi_ultimatum' || agiView === 'agi_nevada' || agiView === 'agi_china_demand') {
     ui.lastOutcome = { action, outcome, firedEvents };
     ui.view = agiView;
     render();
@@ -9048,6 +9356,7 @@ function render() {
   if (ui.view === 'agi_demand') { app.innerHTML = renderAGIDemand(); return; }
   if (ui.view === 'agi_ultimatum') { app.innerHTML = renderAGIUltimatum(); return; }
   if (ui.view === 'agi_nevada') { app.innerHTML = renderAGINevada(); return; }
+  if (ui.view === 'agi_china_demand') { app.innerHTML = renderAGIChineseDemand(); return; }
   app.innerHTML = renderGame();
 }
 
