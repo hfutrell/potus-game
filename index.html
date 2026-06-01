@@ -3439,7 +3439,7 @@ const ACTIONS = [
     id: 'crime_dirty_opposition_files',
     name: 'Compile Opposition Dirt Files [COVERT]',
     desc: 'Secretly gather blackmail-worthy information on congressional opponents.',
-    cat: 'POLITICAL',
+    cat: 'CRIMES',
     condition: s => true,
     oneTime: true,
     outcomes: [
@@ -3483,7 +3483,7 @@ const ACTIONS = [
     id: 'crime_election_interference',
     name: 'Interfere in State Election Certification [COVERT]',
     desc: 'Pressure state officials to certify favorable results in contested state races.',
-    cat: 'POLITICAL',
+    cat: 'CRIMES',
     condition: s => [3, 4, 5, 27, 28, 29].includes(s.turn),
     oneTime: true,
     outcomes: [
@@ -3528,7 +3528,7 @@ const ACTIONS = [
     id: 'crime_arms_deal_kickbacks',
     name: 'Skim Kickbacks from Defense Contracts [COVERT]',
     desc: 'Route classified defense contracts to shell companies connected to your allies.',
-    cat: 'ECONOMIC',
+    cat: 'CRIMES',
     condition: s => s.turn > 2,
     oneTime: true,
     outcomes: [
@@ -3570,7 +3570,7 @@ const ACTIONS = [
     id: 'crime_fabricate_intel',
     name: 'Fabricate Intelligence to Justify Military Action [COVERT]',
     desc: 'Direct CIA loyalist to manufacture evidence justifying a conflict you want.',
-    cat: 'MILITARY',
+    cat: 'CRIMES',
     condition: s => s.loyalists && s.loyalists.cia && s.active_conflicts.length < 3,
     oneTime: true,
     outcomes: [
@@ -3618,7 +3618,7 @@ const ACTIONS = [
     id: 'crime_opponent_scandal_plant',
     name: 'Plant Fabricated Scandal on Political Opponent [COVERT]',
     desc: 'Direct operatives to create and leak a false scandal targeting your chief rival.',
-    cat: 'POLITICAL',
+    cat: 'CRIMES',
     condition: s => s.legal_exposure < 60,
     oneTime: true,
     outcomes: [
@@ -3662,7 +3662,7 @@ const ACTIONS = [
     id: 'crime_secret_back_channel',
     name: 'Secret Back-Channel Deal with Adversary [COVERT]',
     desc: 'Make a covert deal with Russia or China that publicly you deny — trading something for something.',
-    cat: 'FOREIGN',
+    cat: 'CRIMES',
     condition: s => true,
     oneTime: true,
     outcomes: [
@@ -8854,8 +8854,8 @@ function renderGame() {
     <div class="card-title">Presidential Actions</div>
     <div class="cat-filter">
       <button class="cat-btn${isSuggested?' active':''}" onclick="setCategory('ALL')">⭐ Suggested</button>
-      ${['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL'].map(c => {
-        const labels = {FOREIGN:'🌍 Foreign',MILITARY:'⚔ Military',ECONOMIC:'💰 Economy',DOMESTIC:'🏛 Domestic',POLITICAL:'🎭 Political'};
+      ${['FOREIGN','MILITARY','ECONOMIC','DOMESTIC','POLITICAL','CRIMES'].map(c => {
+        const labels = {FOREIGN:'🌍 Foreign',MILITARY:'⚔ Military',ECONOMIC:'💰 Economy',DOMESTIC:'🏛 Domestic',POLITICAL:'🎭 Political',CRIMES:'🔒 Crimes'};
         return `<button class="cat-btn ${c.toLowerCase()}${catFilter===c?' active':''}" onclick="setCategory('${c}')">${labels[c]} (${catCounts[c]})</button>`;
       }).join('')}
     </div>
