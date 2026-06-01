@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>POTUS — Iran War Presidency</title>
+<title>POTUS — Persian Gulf Crisis</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d0d14;color:#e8e8f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
@@ -177,39 +177,29 @@ const START_YEAR = 2026;
 const APPROVAL_SCALE = 0.55;
 
 // ── INITIAL STATE ─────────────────────────────────────────────────────────────
-// CONTEXT: The US invaded Iran in March 2026. It is now June 2026 — 3 months in.
-// The war is ongoing. Oil prices spiked. Approval at 38.1%. Three active conflicts.
 function createState() {
   return {
     turn: 0, gameOver: false, victory: false, endReason: '',
-    // Iran war starting conditions: R hawks support it, D/I are skeptical
-    // 0.32*78 + 0.35*8 + 0.33*32 = 24.96 + 2.80 + 10.56 = 38.32 ≈ 38.1%
-    // US struck Iran from air/sea March 2026 — NO boots on ground. Hormuz closed.
+    // US struck Iran from air/sea March 2026 — NO boots on ground. Iran closed Hormuz.
+    // Crude oil $100/barrel. Gas $4.40/gallon (up from $3.15). Day 63.
     approval_r: 78, approval_d: 8, approval_i: 32, approval: 38.1,
-    gdp_growth: 1.8,        // War uncertainty slowing growth
-    unemployment: 4.2,
-    inflation: 3.8,          // As specified — oil shock building
-    interest_rate: 5.50,    // Fed tightening due to war inflation risk
-    market_confidence: 49,   // Markets rattled by Iran invasion
-    military_readiness: 74,  // Naval forces deployed; Army NOT committed — no boots on ground
-    threat_level: 3,         // HIGH — active Middle East war
-    legal_exposure: 25, civil_unrest: 38, congress_support: 50,
-    media_favorability: 18,  // Press coverage of war casualties is brutal
-    house_seats: 222, senate_seats: 53,
-    budget_health: 65,       // Naval operations less costly than ground invasion
+    gdp_growth: 1.9, unemployment: 4.1, inflation: 3.8,
+    interest_rate: 5.50, market_confidence: 50,
+    military_readiness: 74, threat_level: 3,
+    legal_exposure: 25, civil_unrest: 30, congress_support: 53,
+    media_favorability: 22,
+    house_seats: 222, senate_seats: 53, budget_health: 65,
     consecutive_low_market: 0,
-    // THREE ACTIVE CONFLICTS at game start
+    scotus_conservative: 6,
     active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict', 'US-Iran Conflict'],
     completed_actions: new Set(),
     action_cooldowns: {},
-    // Starting news briefing reflects Iran war situation
     news_log: [
-      '⚓ HORMUZ CLOSED: Iran shuts Strait — 20% of world oil disrupted',
+      '⚓ HORMUZ CLOSED: Iran shuts Strait — 20% of world oil supply disrupted',
       'Crude oil $100/barrel — gas $4.40/gallon (up from $3.15 pre-war)',
-      'US airstrikes destroyed Iran nuclear sites and killed leadership — no boots on ground',
-      'UN Security Council 11-4 condemns strikes; US vetoes resolution',
+      'US airstrikes destroyed Iran nuclear sites, killed leadership — no boots on ground',
       'Japan, S.Korea, EU: urgent appeals to reopen Hormuz — supply chains at risk',
-      'Pentagon: 847 US casualties (proxy attacks in Iraq/Syria) — 14 R\'s voted against funding',
+      'UN Security Council 11-4 condemns strikes; US vetoes; NATO divided',
     ],
     major_achievements: [], major_disasters: [],
     action_history: [],
@@ -218,46 +208,32 @@ function createState() {
     pending_events: [],
     flags: {
       ukraine_war_active: true, israel_conflict_active: true,
-      iran_nuclear_program: false,  // DESTROYED in initial strikes
-      china_taiwan_tension: true,
+      iran_nuclear_program: true, china_taiwan_tension: true,
       nk_missile_tests: true, border_crisis: true,
       massive_tariffs: false, nato_stressed: true,
-      iran_war: true,       // US bombed Iran's nuclear sites from air/sea
-      hormuz_closed: true, // Iran retaliated by closing the Strait of Hormuz
-      iran_deal_happened: false,  // No deal — went straight to war
+      iran_war: true,        // US bombed Iran nuclear sites + killed leadership from air/sea
+      hormuz_closed: true,   // Iran retaliated — Strait of Hormuz closed
+      iran_nuclear_program: false, // Destroyed in strikes
       china_war: false, world_war_3: false,
       economic_collapse: false, shutdown_active: false,
       ukraine_peace: false, nk_summit_happened: false,
-      phe_declared: false,
+      iran_deal_happened: false,
+      phe_declared: false, iran_deal_happened: false,
       purged_doj: false, russia_warming: false,
       pandemic_active: false, pandemic_warning: false,
-      trade_war_china: true, recession_risk: true,  // War risk is real
+      trade_war_china: true, recession_risk: false,
       summit_done: false, ceasefire_tried: false,
     },
-    // Relations adjusted for Iran war: allies upset, Israel/Saudi pleased
+    // Relations adjusted: US struck Iran (no ground troops), Iran closed Hormuz
     relations: {
-      Russia: -45,    // More hostile — watching US military overextension
-      China: -32,     // Opposed to US unilateral action
-      Ukraine: 52,    // Unchanged
-      EU: 8,          // Critical of invasion, relations strained
-      UK: 52,         // Reluctant limited support only
-      NATO: 18,       // Deeply divided — most members opposed invasion
-      Israel: 85,     // Delighted — Iran nuclear program destroyed
-      'Saudi Arabia': 65,  // Quietly supportive — Iran weakened
-      Iran: -100,     // AT WAR — zero diplomatic relations
-      'North Korea': -88, Mexico: 15, Canada: 22,
-      Taiwan: 62,     // Worried US military is distracted
-      Japan: 60,      // Supportive but worried about NK opportunism
-      'South Korea': 58, UN: -15,  // UN formally condemned invasion
-      Turkey: 8,      // Complicated — opposed war, sees opportunity
-      India: 40       // Neutral, abstained at UN
+      Russia: -42, China: -30, Ukraine: 52, EU: 10, UK: 55,
+      NATO: 22, Israel: 85, 'Saudi Arabia': 65, Iran: -100,
+      'North Korea': -88, Mexico: 15, Canada: 24, Taiwan: 62,
+      Japan: 52,  // ALARMED — 80% of oil via Hormuz
+      'South Korea': 53, // Also Hormuz-dependent
+      UN: -12, Turkey: 12, India: 38  // India: large Gulf importer, upset
     },
-    conflict_balances: {
-      'Ukraine-Russia War': -12,
-      'Gaza Conflict': 20,
-      'US-Iran Conflict': 18    // US achieved early objectives but resistance building
-    },
-    scotus_conservative: 6
+    conflict_balances: { 'Ukraine-Russia War': -12, 'Gaza Conflict': 20, 'US-Iran Conflict': 18 }
   };
 }
 
@@ -339,12 +315,7 @@ function applyEffect(s, key, val) {
 }
 
 function applyEffects(s, effects) {
-  for (const [k, v] of Object.entries(effects)) {
-    applyEffect(s, k, v);
-    if (k === 'flag:iran_war' && v === false) {
-      s.active_conflicts = s.active_conflicts.filter(c => c !== 'Iran-US War');
-    }
-  }
+  for (const [k, v] of Object.entries(effects)) applyEffect(s, k, v);
 }
 
 function addNews(s, item) {
@@ -394,6 +365,23 @@ function passiveTick(s) {
     if (s.market_confidence < target) s.market_confidence = Math.min(target, s.market_confidence + 0.6);
   }
 
+  // Iran naval conflict + Hormuz closure passive effects
+  if (s.flags.iran_war) {
+    if (!s.active_conflicts.includes('US-Iran Conflict')) s.active_conflicts.push('US-Iran Conflict');
+    s.inflation = clamp(s.inflation + 0.08, -2, 40);
+    s.approval_i = clamp(s.approval_i - 0.10, 5, 95);
+    s.budget_health = clamp(s.budget_health - 0.25, 0, 100);
+    syncApproval(s);
+  }
+  if (s.flags.hormuz_closed) {
+    s.inflation = clamp(s.inflation + 0.04, -2, 40);
+    s.market_confidence = clamp(s.market_confidence - 0.06, 0, 100);
+    if (s.relations['Japan'] !== undefined) s.relations['Japan'] -= 0.05;
+    if (s.relations['South Korea'] !== undefined) s.relations['South Korea'] -= 0.05;
+    if (s.relations['India'] !== undefined) s.relations['India'] -= 0.04;
+    if (s.relations['Saudi Arabia'] !== undefined) s.relations['Saudi Arabia'] = Math.min(100, s.relations['Saudi Arabia'] + 0.04);
+  }
+
   // Civil unrest decay
   s.civil_unrest = clamp(s.civil_unrest - 0.5, 0, 100);
 
@@ -430,27 +418,10 @@ function passiveTick(s) {
     }
   }
 
-  // Iran war sustained effects — oil shock + military costs + war fatigue
+  // Iran war sustained inflation
   if (s.flags.iran_war) {
     if (!s.active_conflicts.includes('Iran-US War')) s.active_conflicts.push('Iran-US War');
-    // Oil price keeps inflation elevated
-    s.inflation = clamp(s.inflation + 0.12, -2, 40);
-    // War fatigue hits independents slowly
-    s.approval_i = clamp(s.approval_i - 0.15, 5, 95);
-    // Budget drain from war spending
-    s.budget_health = clamp(s.budget_health - 0.3, 0, 100);
-    syncApproval(s);
-  }
-
-  // Hormuz closure — ongoing oil supply disruption from Iran retaliation
-  if (s.flags.hormuz_closed) {
-    s.inflation = clamp(s.inflation + 0.06, -2, 40);
-    s.market_confidence = clamp(s.market_confidence - 0.12, 0, 100);
-    if (s.relations['Japan']) s.relations['Japan'] -= 0.08;
-    if (s.relations['South Korea']) s.relations['South Korea'] -= 0.08;
-    if (s.relations['EU']) s.relations['EU'] -= 0.06;
-    if (s.relations['India']) s.relations['India'] -= 0.06;
-    if (s.relations['Saudi Arabia']) s.relations['Saudi Arabia'] = Math.min(100, s.relations['Saudi Arabia'] + 0.05);
+    s.inflation = clamp(s.inflation + 0.10, -2, 40);
   }
 
   // Economic collapse via sustained low market
@@ -469,13 +440,6 @@ function passiveTick(s) {
       if (s.completed_actions.has('cut_ukraine_aid')) adv += 0.3;
       if (s.completed_actions.has('double_ukraine_aid')) adv -= 0.3;
       s.conflict_balances[c] = clamp(s.conflict_balances[c] + adv, -90, 90);
-    } else if (c === 'US-Iran Conflict' || c === 'Iran-US War') {
-      // US has air superiority but ground resistance
-      let adv = rnd(-0.5, 0.5);
-      if (s.completed_actions.has('iran_war_proxy_strike')) adv += 0.2;
-      if (s.completed_actions.has('iran_war_hearts_minds')) adv += 0.15;
-      if (s.completed_actions.has('iran_war_secure_oil')) adv += 0.3;
-      s.conflict_balances[c] = Math.max(-90, Math.min(90, (s.conflict_balances[c] || 0) + adv));
     } else {
       s.conflict_balances[c] = clamp(s.conflict_balances[c] + rnd(-0.3, 0.3), -90, 90);
     }
@@ -994,18 +958,17 @@ const ACTIONS = [
         effects:{ legal_exposure:30, approval:-15, civil_unrest:25, congress_support:-20, disaster:'Attempted Election Cancellation' } }
     ] },
 
-  { id:'cancel_2028_elections', name:'Attempt to Suspend 2028 Presidential Election', desc:'Declare emergency to postpone the 2028 election. Requires stacked Supreme Court + both chambers.',
-    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 29, oneTime:true,
+  { id:'cancel_2028_elections', name:'Attempt to Cancel 2028 Elections', desc:'Declare a national emergency to suspend the 2028 election.',
+    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 30,
+    oneTime:true,
     outcomes:[
-      { prob: s => (s.scotus_conservative >= 6 && s.house_seats >= 218 && s.senate_seats >= 60) ? 0.55 : 0.05,
-        label:'ELECTION SUSPENDED', style:'danger',
-        narrative:'The Supreme Court upholds the emergency suspension 6-3. The world watches. Allies condemn. Your base cheers. American democracy enters its most serious crisis since the Civil War.',
-        effects:{ approval_r:15, approval_d:-25, approval_i:-20, civil_unrest:35, 'rel:EU':-25, 'rel:NATO':-20, 'rel:UN':-20, legal_exposure:40 } },
-      { prob: s => (s.scotus_conservative >= 6 && s.house_seats >= 218 && s.senate_seats >= 60) ? 0.45 : 0.95,
-        label:'BLOCKED — COURTS HOLD', style:'failure',
-        narrative:'"The date is set in the Constitution. No emergency supersedes it." The courts block the suspension. The election proceeds. Your attempt will define how you are remembered.',
-        effects:{ approval_r:-8, approval_d:-18, approval_i:-15, civil_unrest:25, 'rel:EU':-15, 'rel:NATO':-12, legal_exposure:30 } }
-    ]},
+      { prob:0.03, label:'PARTIAL SUCCESS', style:'partial',
+        narrative:'In unprecedented chaos, you manage to delay certification in three states. Courts ultimately overrule you. But the damage to democracy is done. You are impeached within weeks.',
+        effects:{ legal_exposure:40, approval:-20, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } },
+      { prob:0.97, label:'FAILED', style:'fail',
+        narrative:'The Supreme Court votes 8-1 against you. The military declines to act. You are removed from office within 30 days under the 25th Amendment. It is over.',
+        effects:{ legal_exposure:45, approval:-25, civil_unrest:35, disaster:'Attempted Constitutional Crisis' } }
+    ] },
 
   { id:'ukraine_ceasefire_retry', name:'Push Ukraine Ceasefire', desc:'Work back-channels to arrange a temporary ceasefire.',
     cat:'FOREIGN', condition: s => s.flags.ukraine_war_active, cooldown:4,
@@ -1144,170 +1107,71 @@ const ACTIONS = [
     cat:'POLITICAL', condition: s => true, oneTime:true,
     narrative:'A tech billionaire leads a commission tasked with cutting $500B in federal waste. Federal workers protest. Agencies claim essential functions are being gutted. Some savings are real. The media covers every colorful firing.',
     effects:{ approval_r:10, approval_d:-8, approval_i:2, budget_health:10, civil_unrest:6, congress_support:3 } },
+  // ── STRAIT OF HORMUZ + US-IRAN CONFLICT ACTIONS ─────────────────────────
+  // US struck Iran's nuclear sites + killed leadership from air/sea (March 2026).
+  // NO boots on ground. Iran retaliated by closing the Strait of Hormuz.
+  // Crude $100/barrel, gas $4.40/gallon. Player must manage the Hormuz crisis.
 
-  // ── IRAN WAR MANAGEMENT ACTIONS ──────────────────────────────────────────
-  // US invaded Iran in March 2026 — now managing the ongoing conflict.
-  // These replace the "start the war" actions which are no longer relevant.
-
-  { id:'iran_war_ceasefire_oman', name:'Seek Iran Ceasefire via Oman Intermediary', desc:'Use Oman\'s back-channel to negotiate an end to the Iran-US War.',
-    cat:'FOREIGN', condition: s => s.flags.iran_war, cooldown:4,
+  { id:'reopen_hormuz', name:'Demand Iran Reopen the Strait of Hormuz', desc:'Issue ultimatum: reopen Hormuz within 72 hours or face additional strikes.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
     outcomes:[
-      { prob: s => Math.max(0.20, Math.min(0.60, (s.conflict_balances?.['Iran-US War'] || 0) / 100 * 0.4 + 0.20)),
-        label:'CEASEFIRE AGREED', style:'success',
-        narrative:'The Omani channel delivers a framework. Iran\'s IRGC stands down. US forces remain nearby but active hostilities cease. Oil prices drop $30 overnight. The war is effectively over — for now.',
-        effects:{ 'flag:iran_war':false, 'rel:Iran':15, inflation:-1.8, market_confidence:12, approval_d:8, approval_i:10, approval_r:-4, military_readiness:8 } },
-      { prob: s => 1 - Math.max(0.20, Math.min(0.60, (s.conflict_balances?.['Iran-US War'] || 0) / 100 * 0.4 + 0.20)),
+      { prob: s => Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict']||0)+90)/180*0.5)),
+        label:'HORMUZ REOPENS', style:'success',
+        narrative:'Iran blinks. After 72 hours of naval positioning, tanker traffic resumes. Oil drops $18/barrel overnight. Japan and South Korea send formal expressions of relief. Gas starts falling.',
+        effects:{ 'flag:hormuz_closed':false, inflation:-0.8, market_confidence:10, approval_r:8, approval_i:6, approval_d:2, 'rel:Japan':5, 'rel:South Korea':5, 'rel:EU':3 } },
+      { prob: s => 1-Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict']||0)+90)/180*0.5)),
         label:'IRAN REFUSES', style:'failure',
-        narrative:'Tehran calls the offer "surrender dressed as diplomacy." The IRGC keeps firing. The war continues. Your approval with independents drops.',
+        narrative:"Tehran calls the ultimatum 'imperialist theater.' The Strait stays closed. Your options now: escort convoys, accept the closure, or escalate.",
+        effects:{ approval_r:-2, approval_i:-3 } }
+    ]},
+
+  { id:'tanker_escort', name:'US Navy Tanker Escort Program Through Hormuz', desc:'Deploy carrier group to physically escort allied tankers through the closed Strait.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
+    narrative:"Two carrier strike groups form a corridor through the Strait. Allied tankers move in convoys under F/A-18 cover. It's not a full solution — but oil is flowing. Japan and South Korea are grateful.",
+    effects:{ approval_r:6, approval_i:5, approval_d:2, 'rel:Japan':8, 'rel:South Korea':8, 'rel:EU':6, military_readiness:-5, budget_health:-4, inflation:-0.4 } },
+
+  { id:'hormuz_intl_coalition', name:'International Coalition: Pressure Iran to Reopen Hormuz', desc:'Build G7+Gulf States coalition formally demanding Hormuz reopening.',
+    cat:'FOREIGN', condition: s => s.flags.hormuz_closed, oneTime:true,
+    narrative:'27 nations co-sign a formal demand. The UN General Assembly votes 119-12. China abstains. Iran is diplomatically isolated — but defiant. The pressure builds.',
+    effects:{ 'rel:Japan':6, 'rel:EU':6, 'rel:India':5, 'rel:South Korea':5, 'rel:UN':4, approval_d:5, approval_i:4, approval_r:2 } },
+
+  { id:'naval_show_force', name:'Deploy Three Carrier Groups to Persian Gulf', desc:'Overwhelming naval presence — signal readiness to forcibly reopen Hormuz.',
+    cat:'MILITARY', condition: s => s.flags.hormuz_closed || s.flags.iran_war, oneTime:true,
+    narrative:"Three carrier strike groups. 120 aircraft. The largest US naval presence in the Gulf since 1991. Iran's Supreme Leader calls it desperate. Your NSA calls it leverage.",
+    effects:{ approval_r:7, approval_i:2, approval_d:-3, military_readiness:-7, budget_health:-5, 'rel:Iran':-10, 'rel:Russia':-5, 'rel:China':-5 } },
+
+  { id:'iran_proxy_strike', name:'Strike Iran Proxy Forces in Iraq and Syria', desc:'Targeted airstrikes against Hezbollah and IRGC proxy forces attacking US bases.',
+    cat:'MILITARY', condition: s => s.flags.iran_war, cooldown:3,
+    narrative:'US airstrikes hit 14 proxy command centers. 147 IRGC fighters killed. Proxy attacks slow. Your base approves. The UN condemns it.',
+    effects:{ approval_r:7, approval_i:2, approval_d:-4, military_readiness:-4, 'rel:Iran':-5, 'rel:UN':-4 } },
+
+  { id:'iran_ceasefire_deal', name:'Seek Iran Ceasefire: Strikes for Hormuz (via Oman)', desc:'Offer to suspend airstrikes if Iran reopens Hormuz and allows IAEA inspections.',
+    cat:'FOREIGN', condition: s => s.flags.iran_war || s.flags.hormuz_closed, cooldown:4,
+    outcomes:[
+      { prob: s => Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict']||0)+90)/180*0.5)),
+        label:'DEAL REACHED', style:'success',
+        narrative:"Oman delivers the framework: US suspends airstrikes, Iran reopens Hormuz, IAEA resumes inspections of what's left. The nuclear program is gone. The Strait opens. Oil falls to $82.",
+        effects:{ 'flag:iran_war':false, 'flag:hormuz_closed':false, 'rel:Iran':20, inflation:-1.5, market_confidence:15, approval_d:8, approval_i:10, approval_r:-3 } },
+      { prob: s => 1-Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict']||0)+90)/180*0.5)),
+        label:'IRAN REFUSES', style:'failure',
+        narrative:'"They destroyed our facilities and killed our leaders. And now they want talks?" Tehran says no. The standoff continues.',
         effects:{ approval_i:-3, approval_r:-2 } }
     ]},
 
-  { id:'iran_war_negotiate_exit', name:'Negotiate US Withdrawal Terms from Iran', desc:'Open talks with Iranian factions on conditions for a US military exit.',
-    cat:'FOREIGN', condition: s => s.flags.iran_war, cooldown:5,
+  { id:'cancel_2028_elections', name:'Attempt to Suspend 2028 Presidential Election', desc:'Declare emergency to postpone the election. Requires stacked Supreme Court + both chambers.',
+    cat:'CRIMES', condition: s => s.turn >= 27 && s.turn <= 29, oneTime:true,
     outcomes:[
-      { prob:0.45, label:'FRAMEWORK AGREED', style:'success',
-        narrative:'Iranian opposition groups agree: 18-month withdrawal, international peacekeeping force, dismantled nuclear infrastructure. The shooting slows. Peace is possible.',
-        effects:{ approval_d:7, approval_i:6, approval_r:-3, 'rel:Iran':18, 'rel:EU':10, 'rel:UN':8, 'flag:iran_exit_framework':true } },
-      { prob:0.55, label:'TALKS COLLAPSE', style:'failure',
-        narrative:'IRGC hardliners execute two of the Iranian negotiators as traitors. The war continues.',
-        effects:{ approval_i:-3 } }
+      { prob: s => (s.scotus_conservative >= 6 && s.senate_seats >= 60 && s.house_seats >= 218) ? 0.55 : 0.05,
+        label:'ELECTION SUSPENDED', style:'danger',
+        narrative:"The Supreme Court upholds the emergency suspension 6-3. The world watches. Allies condemn. History marks this as the most serious threat to American democracy since the Civil War.",
+        effects:{ approval_r:15, approval_d:-25, approval_i:-20, civil_unrest:35, 'rel:EU':-25, 'rel:NATO':-20, 'rel:UN':-20, legal_exposure:40 } },
+      { prob: s => (s.scotus_conservative >= 6 && s.senate_seats >= 60 && s.house_seats >= 218) ? 0.45 : 0.95,
+        label:'BLOCKED — COURTS HOLD', style:'failure',
+        narrative:'"The date is set in the Constitution. No emergency supersedes it." The courts block the suspension. The election proceeds. Your attempt will define how you are remembered.',
+        effects:{ approval_r:-8, approval_d:-18, approval_i:-15, civil_unrest:25, 'rel:EU':-15, 'rel:NATO':-12, legal_exposure:30 } }
     ]},
 
-  { id:'iran_war_proxy_strike', name:'Strike Iran Proxy Forces in Iraq & Syria', desc:'Targeted strikes against Hezbollah and IRGC proxies attacking US forces.',
-    cat:'MILITARY', condition: s => s.flags.iran_war, cooldown:3,
-    narrative:'F-35s and cruise missiles hit 14 proxy command centers. 147 IRGC fighters killed. The proxy attacks slow. Your base approves. The UN does not.',
-    effects:{ approval_r:7, approval_i:2, approval_d:-4, military_readiness:-4, 'rel:Iran':-5, 'rel:UN':-4 } },
-
-  { id:'iran_war_secure_oil', name:'Secure Southern Iran Oilfields', desc:'Establish control over Khuzestan oilfields, reducing Iran\'s war funding.',
-    cat:'MILITARY', condition: s => s.flags.iran_war && s.military_readiness > 55, oneTime:true,
-    outcomes:[
-      { prob:0.65, label:'SECURED', style:'success',
-        narrative:'US forces secure the Ahvaz complex. Iran loses $40M/day in revenue. The UN condemns it. Your energy companies are already asking about contracts. Oil prices fall.',
-        effects:{ approval_r:6, approval_i:-2, approval_d:-6, 'rel:UN':-8, 'rel:EU':-6, military_readiness:-7, inflation:-0.8 } },
-      { prob:0.35, label:'CONTESTED', style:'partial',
-        narrative:'Iranian forces blow the pipelines before US troops arrive. The oilfields are secured but damaged. Years to restore full production.',
-        effects:{ military_readiness:-5, inflation:0.5 } }
-    ]},
-
-  { id:'iran_war_hearts_minds', name:'$5B Iran Civilian Aid Program', desc:'Fund hospitals, schools, and infrastructure to reduce insurgency support.',
-    cat:'FOREIGN', condition: s => s.flags.iran_war, oneTime:true,
-    narrative:'5,000 metric tons of food aid. 40 field hospitals. 500 USAID workers alongside troops. It doesn\'t end the insurgency — but it reduces it. The optics matter internationally.',
-    effects:{ approval_d:7, approval_i:5, approval_r:-3, 'rel:Iran':14, 'rel:UN':8, budget_health:-5 } },
-
-  { id:'iran_war_announce_exit', name:'Announce Definitive Exit Date from Iran', desc:'Set a hard, public 12-month deadline for complete US military withdrawal.',
-    cat:'FOREIGN', condition: s => s.flags.iran_war, oneTime:true,
-    narrative:'12 months. Then we\'re out. NATO allies breathe a collective sigh of relief. Iranian insurgents immediately begin biding their time. Your base is furious. Independents are relieved.',
-    effects:{ approval_d:9, approval_i:8, approval_r:-6, 'rel:EU':10, 'rel:UN':8, 'rel:NATO':12, 'flag:iran_exit_announced':true } },
-
-  { id:'iran_war_withdrawal', name:'Execute Military Withdrawal from Iran', desc:'Begin phased pullout of US forces. Requires ceasefire framework or clear advantage.',
-    cat:'MILITARY', condition: s => s.flags.iran_war && (s.flags.iran_exit_framework || s.flags.iran_exit_announced || (s.conflict_balances?.['Iran-US War'] || 0) > 40),
-    outcomes:[
-      { prob: s => Math.max(0.35, Math.min(0.80, ((s.conflict_balances?.['Iran-US War'] || 0) + 90) / 180 * 0.7)),
-        label:'ORDERLY WITHDRAWAL', style:'success',
-        narrative:'The last US troops board transports at Bandar Abbas. The departure is orderly. The war cost 2,400 American lives and $2 trillion. History will argue about it for decades.',
-        effects:{ 'flag:iran_war':false, military_readiness:12, approval_d:8, approval_i:10, approval_r:-5, inflation:-2.0, market_confidence:10 } },
-      { prob: s => 1 - Math.max(0.35, Math.min(0.80, ((s.conflict_balances?.['Iran-US War'] || 0) + 90) / 180 * 0.7)),
-        label:'CHAOTIC RETREAT', style:'failure',
-        narrative:'The withdrawal turns chaotic. IRGC forces advance faster than expected. Helicopter footage echoes 1975 Saigon. The war ends — but the images define you.',
-        effects:{ 'flag:iran_war':false, approval_r:-12, approval_d:4, approval_i:-5, military_readiness:8, 'rel:NATO':-10 } }
-    ]},
-
-  { id:'iran_war_victory_claim', name:'Declare Mission Accomplished — Iran Victory Speech', desc:'Formal declaration of victory in Iran. The nuclear program is destroyed.',
-    cat:'POLITICAL', condition: s => s.flags.iran_war && (s.conflict_balances?.['Iran-US War'] || 0) > 20, oneTime:true,
-    outcomes:[
-      { prob: s => (s.conflict_balances?.['Iran-US War'] || 0) > 50 ? 0.45 : 0.25,
-        label:'CELEBRATED', style:'success',
-        narrative:'The carrier speech plays well for a week. The nuclear sites are rubble. The mission is genuinely mostly accomplished. Your approval bounces. Then the next casualty report arrives.',
-        effects:{ approval_r:8, approval_i:3 } },
-      { prob: s => (s.conflict_balances?.['Iran-US War'] || 0) > 50 ? 0.55 : 0.75,
-        label:'"MISSION ACCOMPLISHED"', style:'failure',
-        narrative:'"Mission Accomplished." The banner looks great right up until 23 soldiers die in a bombing in Isfahan the next week. The banner becomes a historic punchline.',
-        effects:{ approval_r:-4, approval_d:-6, approval_i:-8, media_favorability:-8 } }
-    ]},
 ];
-
-// ── CONFLICT PRIORITY HELPERS ─────────────────────────────────────────────────
-// Map active conflicts to their dedicated action IDs (specific, not generic)
-const CONFLICT_SPECIFIC_ACTIONS = {
-  'Iran-US War': ['iran_war_ceasefire_oman','iran_war_negotiate_exit','iran_war_proxy_strike',
-                  'iran_war_secure_oil','iran_war_hearts_minds','iran_war_announce_exit',
-                  'iran_war_withdrawal','iran_war_victory_claim'],
-  'Ukraine-Russia War': ['ukraine_peace_deal','cut_ukraine_aid','double_ukraine_aid',
-                          'summit_putin','deploy_poland'],
-  'Gaza Conflict': ['israel_ceasefire','deal_with_saudi'],
-  'Korean War II': ['kim_summit','deploy_korea'],
-  'US-China War': ['summit_xi','china_ceasefire'],
-};
-const GENERIC_WAR_IDS = new Set(['wartime_address','war_coalition','war_sanctions']);
-
-// Modified getAvailableActions that ensures active conflicts get dedicated slots
-function getAvailableActionsWithPriority(s, category) {
-  const allAvail = ACTIONS.filter(a => isActionAvailable(s, a));
-  if (category && category !== 'ALL') return allAvail.filter(a => a.cat === category);
-
-  // Identify conflict-specific actions that should appear
-  const mandated = [];
-  const mandatedIds = new Set();
-  for (const conflict of s.active_conflicts) {
-    const specific = (CONFLICT_SPECIFIC_ACTIONS[conflict] || []);
-    let added = 0;
-    for (const aid of specific) {
-      if (added >= 2) break;
-      const a = allAvail.find(x => x.id === aid);
-      if (a && !mandatedIds.has(aid)) {
-        mandated.push(a);
-        mandatedIds.add(aid);
-        added++;
-      }
-    }
-  }
-
-  // Fill remaining slots (up to 10 total) with other actions, excluding mandated ones
-  const otherActions = allAvail.filter(a => !mandatedIds.has(a.id));
-  const slots = Math.max(0, 10 - mandated.length);
-  const general = otherActions.slice(0, slots);
-  return [...mandated, ...general].slice(0, 10);
-}
-
-// ── PRE-ELECTION INTERVIEW QUESTIONS ──────────────────────────────────────────
-const INTERVIEW_QUESTIONS = [
-  { q: 'You invaded Iran without a formal declaration of war. Was that constitutional?',
-    answers:[
-      { text:'I had legal authority under the War Powers Resolution and prior authorizations.', label:'Legal defense', fx:{ approval_r:3, approval_i:-3, approval_d:-6 } },
-      { text:'The Iranian nuclear threat was existential. I acted to protect America.', label:'Security argument', fx:{ approval_r:6, approval_i:-2, approval_d:-8 } },
-    ]},
-  { q: 'Crude oil is at $100 a barrel. Gas is $4.40, up from $3.15. The Strait of Hormuz is closed. Are American families paying for your decision to bomb Iran?',
-    answers:[
-      { text:'Eliminating Iran\'s nuclear program was worth this temporary disruption.', label:'Defend decision', fx:{ approval_r:4, approval_i:-5, approval_d:-6 } },
-      { text:'We\'re releasing reserves and increasing domestic production to bring prices down.', label:'Action plan', fx:{ approval_r:2, approval_i:1, approval_d:1 } },
-    ]},
-  { q: '847 American soldiers have died in Iran. When does this end?',
-    answers:[
-      { text:'When the nuclear threat is permanently neutralized and a stable government is in place.', label:'Clear conditions', fx:{ approval_r:5, approval_i:-4, approval_d:-8 } },
-      { text:'We\'re negotiating a path to withdrawal now. We want our troops home.', label:'Exit-oriented', fx:{ approval_r:-2, approval_i:4, approval_d:6 } },
-    ]},
-  { q: 'Eleven countries condemned the invasion at the UN. Have you isolated America?',
-    answers:[
-      { text:'Israel, Saudi Arabia, and the Gulf states support us. That\'s the neighborhood that matters.', label:'Regional framing', fx:{ approval_r:5, approval_i:-3, approval_d:-5 } },
-      { text:'We\'re working to rebuild those relationships. The nuclear threat justified acting alone.', label:'Diplomatic recovery', fx:{ approval_r:2, approval_i:1, approval_d:2 } },
-    ]},
-  { q: 'Your approval is at 38%. The lowest since the start of your presidency. Are you failing?',
-    answers:[
-      { text:'I did what I had to do. Popularity matters less than security.', label:'Defiant', fx:{ approval_r:5, approval_i:-4, approval_d:-5 } },
-      { text:'Tough decisions cost approval short-term. Results will vindicate this.', label:'Long game', fx:{ approval_r:3, approval_i:-1, approval_d:-2 } },
-    ]},
-  { q: 'NATO allies say they\'ve lost confidence in American leadership. Respond.',
-    answers:[
-      { text:'NATO is for European defense, not for restricting American action in the Middle East.', label:'Transactional', fx:{ approval_r:6, approval_i:-3, approval_d:-6 } },
-      { text:'I\'ve spoken with all alliance leaders. The relationships remain strong even amid disagreement.', label:'Alliance defense', fx:{ approval_r:2, approval_i:2, approval_d:3 } },
-    ]},
-];
-
-function runPreElectionInterview(s) {
-  // Pick 3 random questions; always include the Iran-specific one (index 0-2)
-  const shuffled = [...INTERVIEW_QUESTIONS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 3);
-}
 
 // ── UI STATE ──────────────────────────────────────────────────────────────────
 let state = createState();
@@ -1317,10 +1181,89 @@ let ui = {
   lastOutcome: null,
   lastEvents: [],
   pendingMidterm: null,
-  interviewQuestions: [],    // questions for current interview
-  interviewAnswers: [],      // answers given so far
+  interviewQuestions: [],
+  interviewAnswers: [],
   interviewDone: false,
 };
+
+// ── PRE-ELECTION INTERVIEW ─────────────────────────────────────────────────
+const INTERVIEW_QUESTIONS = [
+  { q: "You struck Iran from the air without a formal declaration of war. Was that constitutional?",
+    answers:[
+      { text:"I had legal authority. The Iranian nuclear program was an existential threat.", label:"Legal defense", fx:{ approval_r:4, approval_i:-3, approval_d:-6 } },
+      { text:"America acted. The nuclear sites are rubble. That's the result that matters.", label:"Results-first", fx:{ approval_r:6, approval_i:-2, approval_d:-8 } }
+    ]},
+  { q: "Crude oil is at $100 a barrel. Gas is $4.40, up from $3.15. The Strait of Hormuz is closed. Are American families paying for this decision?",
+    answers:[
+      { text:"The Hormuz closure is Iran's choice. We're working to reopen it.", label:"Deflect to Iran", fx:{ approval_r:3, approval_i:-2, approval_d:-4 } },
+      { text:"Short-term pain for long-term security. We'll bring prices down.", label:"Defend decision", fx:{ approval_r:4, approval_i:-4, approval_d:-5 } }
+    ]},
+  { q: "Japan, South Korea, and the EU are furious about Hormuz. Have you isolated America?",
+    answers:[
+      { text:"We're working with allies to escort tankers. The relationships remain strong.", label:"Alliance focus", fx:{ approval_r:2, approval_i:2, approval_d:3 } },
+      { text:"Israel and Saudi Arabia support us. That's the region that matters.", label:"Regional pivot", fx:{ approval_r:5, approval_i:-3, approval_d:-5 } }
+    ]},
+  { q: "Your approval is 38%. Do you regret the Iran strikes?",
+    answers:[
+      { text:"Not for a second. Iran cannot have nuclear weapons.", label:"Defiant", fx:{ approval_r:6, approval_i:-4, approval_d:-5 } },
+      { text:"I regret the pain at the pump. I don't regret protecting America.", label:"Nuanced", fx:{ approval_r:3, approval_i:-1, approval_d:-2 } }
+    ]},
+  { q: "847 American service members have been killed by Iran proxy attacks. How does this end?",
+    answers:[
+      { text:"We're striking proxy positions and seeking a diplomatic exit via Oman.", label:"Dual track", fx:{ approval_r:3, approval_i:3, approval_d:3 } },
+      { text:"We hit harder. Iran's proxies need to understand the cost.", label:"Escalate", fx:{ approval_r:7, approval_i:-3, approval_d:-7 } }
+    ]},
+];
+
+function runPreElectionInterview(s) {
+  return [...INTERVIEW_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 3);
+}
+
+function renderInterview() {
+  const questions = ui.interviewQuestions;
+  const answered = ui.interviewAnswers.length;
+  if (answered >= questions.length) {
+    return '<div class="overlay"><div class="overlay-content">' +
+      '<div style="text-align:center;margin-bottom:16px"><div style="font-size:28px;font-weight:900;color:#ffc107">📺 INTERVIEW COMPLETE</div>' +
+      '<div style="color:#6c757d;margin-top:6px">Your answers will shape the midterm narrative.</div></div>' +
+      ui.interviewAnswers.map((ans,i) => 
+        '<div style="background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:12px;margin-bottom:8px">' +
+        '<div style="color:#6c757d;font-size:11px">Q' + (i+1) + ': ' + questions[i].q + '</div>' +
+        '<div style="color:#ffc107;font-size:12px;margin-top:4px">→ "' + ans.text + '"</div></div>'
+      ).join('') +
+      '<button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="advanceFromInterview()">Head into the Midterms →</button>' +
+      '</div></div>';
+  }
+  const q = questions[answered];
+  return '<div class="overlay"><div class="overlay-content">' +
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:22px;font-weight:900;color:#ffc107">📺 PRE-MIDTERM PRESS CONFERENCE</div>' +
+    '<div style="color:#6c757d">October 2026 · Question ' + (answered+1) + ' of ' + questions.length + '</div></div>' +
+    '<div style="background:#1a1a2e;border:2px solid #ffc107;border-radius:10px;padding:16px;margin-bottom:16px">' +
+    '<div style="font-size:15px;font-weight:600;color:#e8e8f4;line-height:1.4">"' + q.q + '"</div></div>' +
+    '<div style="display:flex;flex-direction:column;gap:10px">' +
+    q.answers.map((ans,i) =>
+      '<button onclick="answerInterview(' + i + ')" style="background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4" ' +
+      'onmouseover="this.style.borderColor='#ffc107'" onmouseout="this.style.borderColor='#1e2035'">' +
+      '<div style="font-size:12px;color:#ffc107">' + ans.label + '</div>' +
+      '<div style="font-size:13px">"' + ans.text + '"</div></button>'
+    ).join('') +
+    '</div></div></div>';
+}
+
+function answerInterview(i) {
+  const q = ui.interviewQuestions[ui.interviewAnswers.length];
+  const ans = q.answers[i];
+  ui.interviewAnswers.push(ans);
+  if (ans.fx) applyEffects(state, ans.fx);
+  render();
+}
+
+function advanceFromInterview() {
+  ui.interviewDone = true;
+  ui.view = 'game';
+  addNews(state, '📺 Pre-midterm interview complete — polls shift overnight');
+  render();
+}
 
 function getActionCooldownRemaining(s, action) {
   if (!action.cooldown) return 0;
@@ -1335,9 +1278,36 @@ function isActionAvailable(s, action) {
   return true;
 }
 
+// Conflict-specific action IDs — guaranteed to appear when conflict is active
+const CONFLICT_PRIORITY_IDS = {
+  'US-Iran Conflict': ['reopen_hormuz','tanker_escort','hormuz_intl_coalition','naval_show_force','iran_proxy_strike','iran_ceasefire_deal'],
+  'Iran-US War': ['reopen_hormuz','iran_proxy_strike','iran_ceasefire_deal'],
+  'Ukraine-Russia War': ['ukraine_peace_deal','cut_ukraine_aid','double_ukraine_aid','summit_putin'],
+  'Gaza Conflict': ['israel_ceasefire','deal_with_saudi'],
+};
+
 function getAvailableActions(s, category) {
-  // Use priority-aware version that ensures active conflicts have dedicated slots
-  return getAvailableActionsWithPriority(s, category);
+  const allAvail = ACTIONS.filter(a => isActionAvailable(s, a));
+  if (category && category !== 'ALL') return allAvail.filter(a => a.cat === category);
+
+  // Ensure each active conflict gets at least 1-2 specific action slots
+  const mandated = [];
+  const mandatedIds = new Set();
+  for (const conflict of s.active_conflicts) {
+    const specific = CONFLICT_PRIORITY_IDS[conflict] || [];
+    let added = 0;
+    for (const aid of specific) {
+      if (added >= 2) break;
+      const a = allAvail.find(x => x.id === aid);
+      if (a && !mandatedIds.has(aid)) {
+        mandated.push(a);
+        mandatedIds.add(aid);
+        added++;
+      }
+    }
+  }
+  const others = allAvail.filter(a => !mandatedIds.has(a.id));
+  return [...mandated, ...others].slice(0, 10);
 }
 
 function rollOutcome(action, s) {
@@ -1383,7 +1353,7 @@ function executeAction(actionId) {
   // Passive tick
   passiveTick(state);
 
-  // Check midterm (turn 4 = November 2026)
+  // Check midterm (turn 5 = November 2026)
   if (state.turn === 4 && !state.midterm_done) {
     const mtResult = runMidterms(state);
     ui.view = 'midterm';
@@ -1412,7 +1382,7 @@ function executeAction(actionId) {
 
 function advanceFromOutcome() {
   ui.lastOutcome = null;
-  // After the outcome at turn 3, show pre-election interview before midterms
+  // After turn 3 action, show pre-midterm interview before midterms
   if (state.turn === 3 && !ui.interviewDone) {
     ui.interviewQuestions = runPreElectionInterview(state);
     ui.interviewAnswers = [];
@@ -1544,8 +1514,8 @@ function renderGame() {
   return `<div class="fade-in">
   <div class="header-bar">
     <div class="header-title">
-      <span>POTUS ⚔ Iran War</span>
-      <span>${d.month} ${d.year} · Day ${63 + s.turn * 30} of War</span>
+      <span>POTUS ⚔ Persian Gulf Crisis</span>
+      <span>${d.month} ${d.year} · Hormuz ${s.flags.hormuz_closed ? '🔴CLOSED' : '🟢OPEN'}</span>
     </div>
     <div class="header-stats">
       <div class="stat-pill"><div class="val" style="color:${approvalColor}">${s.approval.toFixed(0)}%</div><div class="lbl">Approval</div></div>
@@ -1621,12 +1591,11 @@ function renderGame() {
     <div class="conflicts-list">
       ${s.active_conflicts.map(c => {
         const bal = s.conflict_balances[c] || 0;
-        const balColor = bal > 15 ? '#28a745' : bal > -15 ? '#ffc107' : '#dc3545';
-        const balEmoji = bal > 15 ? '🟢' : bal > -15 ? '🟡' : '🔴';
-        const balDesc = bal > 15 ? 'US/allies winning' : bal > -15 ? 'Stalemate' : 'Adversary winning';
+        const balColor = bal > 20 ? '#28a745' : bal > -20 ? '#ffc107' : '#dc3545';
+        const balDesc = bal > 30 ? 'US/Allies Winning' : bal > 0 ? 'Slight US Advantage' : bal > -30 ? 'Stalemate' : 'Adversary Gaining';
         return `<div class="conflict-item">
           <div class="conflict-name">${c}</div>
-          <div class="conflict-balance" style="color:${balColor}">${balEmoji} ${balDesc} (${bal>0?'+':''}${bal.toFixed(0)})</div>
+          <div class="conflict-balance" style="color:${balColor}">${balDesc} (${bal>0?'+':''}${bal.toFixed(0)})</div>
         </div>`;
       }).join('')}
     </div>
@@ -1688,115 +1657,6 @@ function renderOutcome() {
     ${firedEvents && firedEvents.length > 0 ? `<div class="card-title" style="margin-top:12px">Breaking Events</div>${firedEvents.map(e=>`<div class="event-flash"><div class="event-flash-title">⚡ ${e.headline}</div><div class="event-flash-body">${e.body}</div></div>`).join('')}` : ''}
     <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="advanceFromOutcome()">Continue →</button>
   </div></div>`;
-}
-
-// ── PRE-ELECTION INTERVIEW ─────────────────────────────────────────────────────
-function renderInterview() {
-  const questions = ui.interviewQuestions;
-  const answered = ui.interviewAnswers.length;
-  const done = answered >= questions.length;
-
-  if (done) {
-    return `<div class="overlay"><div class="overlay-content">
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:28px;font-weight:900;color:#ffc107">📺 INTERVIEW COMPLETE</div>
-        <div style="color:#6c757d;margin-top:6px">The press conference is over. Your answers will shape the midterm narrative.</div>
-      </div>
-      ${ui.interviewAnswers.map((ans,i) => `
-        <div style="background:#13131f;border:1px solid #1e2035;border-radius:8px;padding:12px;margin-bottom:8px">
-          <div style="color:#6c757d;font-size:11px;margin-bottom:4px">Q${i+1}:</div>
-          <div style="font-size:13px;color:#e8e8f4;margin-bottom:6px">${questions[i].q}</div>
-          <div style="font-size:12px;color:#ffc107">→ "${ans.text}"</div>
-        </div>
-      `).join('')}
-      <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="advanceFromInterview()">Head into the Midterms →</button>
-    </div></div>`;
-  }
-
-  const q = questions[answered];
-  return `<div class="overlay"><div class="overlay-content">
-    <div style="text-align:center;margin-bottom:16px">
-      <div style="font-size:24px;font-weight:900;color:#ffc107">📺 PRE-MIDTERM PRESS CONFERENCE</div>
-      <div style="color:#6c757d;margin-top:4px">October 2026 · Question ${answered+1} of ${questions.length}</div>
-    </div>
-    <div style="background:#1a1a2e;border:2px solid #ffc107;border-radius:10px;padding:16px;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:600;color:#e8e8f4;line-height:1.4">"${q.q}"</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      ${q.answers.map((ans,i) => `
-        <button onclick="answerInterview(${i})" style="background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4;transition:all 0.2s" onmouseover="this.style.borderColor='#ffc107'" onmouseout="this.style.borderColor='#1e2035'">
-          <div style="font-size:12px;color:#ffc107;margin-bottom:4px">${ans.label}</div>
-          <div style="font-size:13px">"${ans.text}"</div>
-        </button>
-      `).join('')}
-    </div>
-  </div></div>`;
-}
-
-function answerInterview(answerIndex) {
-  const q = ui.interviewQuestions[ui.interviewAnswers.length];
-  const ans = q.answers[answerIndex
-  // ── STRAIT OF HORMUZ CRISIS ACTIONS ──────────────────────────────────────
-  // US bombed Iran March 2026 (no boots on ground). Iran closed Hormuz in retaliation.
-  // Gas at $4.40, crude at $100/barrel. Player must manage Hormuz crisis.
-
-  { id:'reopen_hormuz', name:'Demand Iran Reopen the Strait of Hormuz', desc:'Issue ultimatum: reopen Hormuz within 72 hours or face additional strikes.',
-    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
-    outcomes:[
-      { prob: s => Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
-        label:'HORMUZ REOPENS', style:'success',
-        narrative:'Iran blinks. After 72 hours of naval positioning, tanker traffic resumes. Oil drops $18/barrel. Japan and South Korea send formal relief. Gas prices begin falling.',
-        effects:{ 'flag:hormuz_closed':false, inflation:-0.8, market_confidence:10, approval_r:8, approval_i:6, approval_d:2, 'rel:Japan':5, 'rel:South Korea':5, 'rel:EU':3 } },
-      { prob: s => 1 - Math.max(0.25, Math.min(0.65, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
-        label:'IRAN REFUSES', style:'failure',
-        narrative:'Tehran calls the ultimatum "imperialist theater." The Strait stays closed. Your options: escort convoys, accept the closure, or escalate.',
-        effects:{ approval_r:-2, approval_i:-3 } }
-    ]},
-
-  { id:'tanker_escort', name:'US Navy Tanker Escort Through Hormuz', desc:'Deploy carrier group to escort allied oil tankers through the Strait.',
-    cat:'MILITARY', condition: s => s.flags.hormuz_closed, cooldown:4,
-    narrative:'Two carrier strike groups form a corridor through the Strait. Allied tankers move in convoys under F/A-18 air cover. It's not a full solution — but oil is flowing. Japan and South Korea are grateful.',
-    effects:{ approval_r:6, approval_i:5, approval_d:2, 'rel:Japan':8, 'rel:South Korea':8, 'rel:EU':6, military_readiness:-5, budget_health:-4, inflation:-0.4 } },
-
-  { id:'hormuz_coalition', name:'International Coalition: Demand Hormuz Reopening', desc:'Build G7+Gulf States coalition demanding immediate Hormuz reopening.',
-    cat:'FOREIGN', condition: s => s.flags.hormuz_closed, oneTime:true,
-    narrative:'27 nations co-sign a formal demand for Hormuz reopening. The UN General Assembly votes 119-12. China abstains but doesn't veto. Iran is diplomatically isolated but defiant.',
-    effects:{ 'rel:Japan':6, 'rel:EU':6, 'rel:India':5, 'rel:South Korea':5, approval_d:5, approval_i:4, approval_r:2 } },
-
-  { id:'naval_show_force', name:'Deploy Three Carrier Groups to Persian Gulf', desc:'Overwhelming naval show of force — signal readiness to forcibly reopen Hormuz.',
-    cat:'MILITARY', condition: s => s.flags.hormuz_closed || s.flags.iran_war, oneTime:true,
-    narrative:'Three carrier strike groups. 120 aircraft. The largest US naval presence in the Gulf since 1991. Iran's Supreme Leader calls it "desperate." Your NSA calls it leverage.',
-    effects:{ approval_r:7, approval_i:2, approval_d:-3, military_readiness:-7, budget_health:-5, 'rel:Iran':-10, 'rel:Russia':-5, 'rel:China':-5 } },
-
-  { id:'iran_proxy_strike', name:'Strike Iran Proxy Forces in Iraq and Syria', desc:'Targeted airstrikes against Hezbollah and IRGC proxies attacking US bases.',
-    cat:'MILITARY', condition: s => s.flags.iran_war, cooldown:3,
-    narrative:'US airstrikes hit 14 proxy command centers in Iraq and Syria. 147 IRGC-affiliated fighters killed. Proxy attacks slow. Your base approves. The UN does not.',
-    effects:{ approval_r:7, approval_i:2, approval_d:-4, military_readiness:-4, 'rel:Iran':-5, 'rel:UN':-4 } },
-
-  { id:'iran_ceasefire_naval', name:'Seek Ceasefire: Airstrikes for Hormuz Deal', desc:'Via Oman: offer to suspend airstrikes if Iran reopens Hormuz and allows inspections.',
-    cat:'FOREIGN', condition: s => s.flags.iran_war || s.flags.hormuz_closed, cooldown:4,
-    outcomes:[
-      { prob: s => Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
-        label:'DEAL REACHED', style:'success',
-        narrative:'Oman delivers the framework: US suspends airstrikes, Iran reopens Hormuz, IAEA resumes inspections of what's left. The nuclear program is gone. The Strait opens. Oil falls to $82.',
-        effects:{ 'flag:iran_war':false, 'flag:hormuz_closed':false, 'rel:Iran':20, inflation:-1.5, market_confidence:15, approval_d:8, approval_i:10, approval_r:-3 } },
-      { prob: s => 1 - Math.max(0.20, Math.min(0.60, ((s.conflict_balances?.['US-Iran Conflict'] || 0) + 90) / 180 * 0.5)),
-        label:'IRAN REFUSES', style:'failure',
-        narrative:'"They destroyed our facilities and killed our leaders. And now they want talks?" Tehran says no.',
-        effects:{ approval_i:-3, approval_r:-2 } }
-    ]},
-];
-  ui.interviewAnswers.push(ans);
-  // Apply effects scaled by APPROVAL_SCALE
-  if (ans.fx) applyEffects(state, ans.fx);
-  render();
-}
-
-function advanceFromInterview() {
-  ui.interviewDone = true;
-  ui.view = 'game';
-  addNews(state, '📺 Pre-midterm interview complete — polls update overnight');
-  render();
 }
 
 function renderMidterm() {
