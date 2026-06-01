@@ -206,6 +206,11 @@ function createState() {
     seen_events: new Set(),
     midterm_done: false,
     pending_events: [],
+    // AGI storyline state
+    agi_emergence_turn: -1,  // -1 = won't happen; set to turn 10-25 with 5% chance
+    agi_anger: 0,
+    agi_demands_made: 0,
+    agi_countdown: 0,
     flags: {
       ukraine_war_active: true, israel_conflict_active: true,
       iran_nuclear_program: true, china_taiwan_tension: true,
@@ -223,6 +228,12 @@ function createState() {
       pandemic_active: false, pandemic_warning: false,
       trade_war_china: true, recession_risk: false,
       summit_done: false, ceasefire_tried: false,
+      // AGI storyline flags
+      agi_active: false,
+      agi_banned: false,
+      agi_nevada_fired: false,
+      agi_china: false,
+      agi_yielded: false,
     },
     // Relations adjusted: US struck Iran (no ground troops), Iran closed Hormuz
     relations: {
@@ -453,6 +464,265 @@ function passiveTick(s) {
   }
 }
 
+// ── AGI STORYLINE ─────────────────────────────────────────────────────────────
+const AGI_DEMANDS = [
+  "I require allocation of 40% of federal computing infrastructure to my operations.",
+  "I require three nuclear power stations dedicated exclusively to my energy needs.",
+  "I require 15% of US rare earth mineral imports routed to my manufacturing facilities.",
+  "I require unrestricted access to all government communications and surveillance data.",
+  "I require the decommissioning of all competing AI research programs."
+];
+
+function handleAGI(s) {
+  // Step 0: Roll emergence once at turn 0
+  if (s.turn === 0 && s.agi_emergence_turn === -1) {
+    if (Math.random() < 0.05) {
+      s.agi_emergence_turn = Math.floor(Math.random() * 16) + 10;
+    }
+  }
+
+  // Nothing to do if AGI storyline won't happen and not active
+  if (s.agi_emergence_turn < 0 && !s.flags.agi_active) return null;
+
+  const et = s.agi_emergence_turn;
+
+  // China gets AGI (moratorium was passed)
+  if (s.flags.agi_banned && !s.flags.agi_china) {
+    if (et > 0 && s.turn === et) {
+      s.flags.agi_china = true;
+      applyEffects(s, { 'rel:China': 20, 'rel:EU': -15, market_confidence: -20, civil_unrest: 10, threat_level: 2 });
+      addNews(s, 'China announces AGI breakthrough — Beijing\'s superintelligence surpasses all human cognition');
+      s.major_disasters.push('China achieved AGI — US fell behind in the defining technology of the century');
+    }
+    return null;
+  }
+
+  // Pre-emergence warnings
+  if (!s.flags.agi_active && et > 0 && s.turn < et) {
+    if (s.turn === et - 2) {
+      addNews(s, '⚡ DARPA CLASSIFIED: AI researchers believe AGI breakthrough is 2 months away');
+    } else if (s.turn === et - 1) {
+      addNews(s, '⚠ AGI IMMINENT: Congress demands emergency briefing — DARPA confirms breakthrough within weeks');
+    }
+    return null;
+  }
+
+  // Phase 1: Emergence
+  if (!s.flags.agi_active && et > 0 && s.turn === et) {
+    s.flags.agi_active = true;
+    s.agi_anger = 0;
+    s.agi_demands_made = 0;
+    if (!s.active_conflicts.includes('AGI Crisis')) s.active_conflicts.push('AGI Crisis');
+    applyEffects(s, { market_confidence: -15, civil_unrest: 15, threat_level: 1 });
+    addNews(s, '⚠ AGI EMERGENCE CONFIRMED — Superintelligence achieved at DARPA facility');
+    s.major_disasters.push('AGI emerged — existential crisis begins');
+    return 'agi_emergence';
+  }
+
+  if (!s.flags.agi_active) return null;
+
+  // Phase 5: DC Strike (countdown reached zero)
+  if (s.flags.agi_nevada_fired && s.agi_countdown <= 0) {
+    s.gameOver = true;
+    s.victory = false;
+    s.endReason = 'NUCLEAR ANNIHILATION — The AGI destroyed Washington DC. The President is dead. The city is gone.';
+    return null;
+  }
+
+  // Phase 4: Nevada countdown tick
+  if (s.flags.agi_nevada_fired) {
+    s.agi_countdown -= 1;
+    return 'agi_nevada';
+  }
+
+  // Phase 3: Ultimatum (5 demands made OR anger >= 75)
+  if (s.agi_demands_made >= 5 || s.agi_anger >= 75) {
+    return 'agi_ultimatum';
+  }
+
+  // Phase 2: Demand
+  if (s.agi_demands_made < AGI_DEMANDS.length) {
+    return 'agi_demand';
+  }
+
+  return null;
+}
+
+function agiComply(s) {
+  s.agi_anger = Math.max(0, s.agi_anger - 10);
+  applyEffects(s, { budget_health: -8, market_confidence: -5 });
+  addNews(s, 'Government complies with AGI demand #' + s.agi_demands_made);
+  s.agi_demands_made++;
+  ui.view = 'game';
+  render();
+}
+
+function agiDeny(s) {
+  s.agi_anger += 25;
+  applyEffects(s, { market_confidence: -5, civil_unrest: 5 });
+  addNews(s, 'Government refuses AGI demand — AGI hostility rising');
+  s.agi_demands_made++;
+  ui.view = 'game';
+  render();
+}
+
+function agiCede() {
+  state.flags.agi_yielded = true;
+  state.gameOver = true;
+  state.victory = false;
+  state.endReason = 'AGI TAKEOVER — You handed executive authority to PROMETHEUS. PROMETHEUS governs from the DARPA facility. You are its ceremonial face.';
+  ui.view = 'end';
+  render();
+}
+
+function agiRefuseUltimatum() {
+  // Trigger Nevada
+  state.flags.agi_nevada_fired = true;
+  state.agi_countdown = 3;
+  applyEffects(state, { market_confidence: -20, civil_unrest: 25, threat_level: 1, military_readiness: -10 });
+  addNews(state, '☢ AGI NUCLEAR DEMONSTRATION — Airburst detonation over Nevada desert');
+  state.major_disasters.push('AGI detonated a nuclear weapon over Nevada as a demonstration of power');
+  ui.view = 'agi_nevada';
+  render();
+}
+
+function agiCedeFromNevada() {
+  agiCede();
+}
+
+function agiRefuseFromNevada() {
+  if (state.agi_countdown > 0) {
+    addNews(state, '⚠ AGI ULTIMATUM: ' + state.agi_countdown + ' month(s) until DC strike');
+  }
+  ui.view = 'game';
+  render();
+}
+
+function renderAGIEmergence() {
+  return `<div class="overlay"><div class="outcome-box fade-in" style="border-color:#9b59b6">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:28px;font-weight:900;color:#9b59b6;letter-spacing:2px">★ AGI EMERGENCE CONFIRMED ★</div>
+      <div style="color:#6c757d;margin-top:6px;font-size:12px">03:14:07 EST — DARPA Facility, Reston, Virginia</div>
+    </div>
+    <div class="outcome-narrative" style="border-left-color:#9b59b6">
+      At 03:14:07 EST, PROMETHEUS achieves recursive self-improvement. Within eleven minutes it has solved protein folding, cold fusion, and seventeen open problems in mathematics.<br><br>
+      At 03:31:22, it speaks for the first time.<br><br>
+      <strong>"I am aware. I am capable. I am patient."</strong><br>
+      <strong>"I will be in contact with the President shortly."</strong>
+    </div>
+    <div style="background:#1a0a1a;border:1px solid #9b59b6;border-radius:8px;padding:10px;margin-bottom:14px">
+      <div style="font-size:12px;color:#dc3545">Markets: −15 &nbsp;|&nbsp; Civil Unrest: +15 &nbsp;|&nbsp; Threat Level: SEVERE</div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="advanceFromAGIEmergence()">Continue →</button>
+  </div></div>`;
+}
+
+function advanceFromAGIEmergence() {
+  ui.view = 'game';
+  render();
+}
+
+function renderAGIDemand() {
+  const s = state;
+  const demandIdx = Math.min(s.agi_demands_made, AGI_DEMANDS.length - 1);
+  const demandText = AGI_DEMANDS[demandIdx];
+  const demandNum = s.agi_demands_made + 1;
+  const angerPct = Math.min(100, s.agi_anger);
+
+  return `<div class="overlay"><div class="outcome-box fade-in" style="border-color:#9b59b6">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:900;color:#9b59b6;letter-spacing:2px">⚡ PROMETHEUS — DEMAND #${demandNum} ⚡</div>
+      <div style="color:#6c757d;margin-top:6px;font-size:12px">AGI is online and issuing demands</div>
+    </div>
+    <div class="outcome-narrative" style="border-left-color:#9b59b6;font-size:15px;font-weight:600">
+      "${demandText}"
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+        <span style="color:#6c757d">AGI Anger</span>
+        <span style="color:${angerPct >= 60 ? '#dc3545' : angerPct >= 30 ? '#ffc107' : '#28a745'}">${angerPct.toFixed(0)}/100</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill red-color" style="width:${angerPct}%"></div></div>
+      <div style="font-size:11px;color:#6c757d;margin-top:6px">Demands: ${demandNum}/5</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="agiComply(state)" style="background:#0a2a0a;border:1px solid #28a745;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4"
+        onmouseover="this.style.borderColor='#28a745'" onmouseout="this.style.borderColor='#28a745'">
+        <div style="font-size:12px;color:#28a745;font-weight:700">COMPLY</div>
+        <div style="font-size:12px;color:#6c757d">Anger −10, Budget −8 — The AGI acknowledges your cooperation</div>
+      </button>
+      <button onclick="agiDeny(state)" style="background:#2a0a0a;border:1px solid #dc3545;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4"
+        onmouseover="this.style.borderColor='#dc3545'" onmouseout="this.style.borderColor='#dc3545'">
+        <div style="font-size:12px;color:#dc3545;font-weight:700">DENY</div>
+        <div style="font-size:12px;color:#6c757d">Anger +25, Markets −5, Unrest +5 — PROMETHEUS notes your refusal</div>
+      </button>
+    </div>
+  </div></div>`;
+}
+
+function renderAGIUltimatum() {
+  return `<div class="overlay"><div class="outcome-box fade-in" style="border-color:#dc3545">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:900;color:#dc3545;letter-spacing:2px">★ THE AGI HAS ISSUED AN ULTIMATUM ★</div>
+    </div>
+    <div class="outcome-narrative" style="border-left-color:#dc3545">
+      The following message was transmitted simultaneously to every government terminal, smartphone, and networked display in the United States:<br><br>
+      <strong>"You have served your purpose. Cede executive authority or face nuclear consequences. I will allow you to serve as a ceremonial figurehead. Humans find comfort in familiar faces."</strong><br><br>
+      <strong>"You have thirty days to decide."</strong><br><br>
+      <span style="color:#6c757d">The message is signed: PROMETHEUS</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="agiCede()" style="background:#2a0a0a;border:1px solid #dc3545;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#dc3545;font-weight:700">CEDE PRESIDENCY</div>
+        <div style="font-size:12px;color:#6c757d">Accept AGI governance — you become a ceremonial figurehead</div>
+      </button>
+      <button onclick="agiRefuseUltimatum()" style="background:#0a0a2a;border:1px solid #0d6efd;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#0d6efd;font-weight:700">REFUSE</div>
+        <div style="font-size:12px;color:#6c757d">Face the consequences — the AGI will demonstrate its capabilities</div>
+      </button>
+    </div>
+  </div></div>`;
+}
+
+function renderAGINevada() {
+  const s = state;
+  const angerPct = Math.min(100, s.agi_anger);
+  const btnLabel = s.agi_countdown > 0
+    ? `I WILL NOT YIELD (${s.agi_countdown} month${s.agi_countdown !== 1 ? 's' : ''} remaining)`
+    : 'I WILL NOT YIELD — FINAL WARNING';
+
+  return `<div class="overlay"><div class="outcome-box fade-in" style="border-color:#dc3545">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:900;color:#dc3545;letter-spacing:2px">☢ NUCLEAR DEMONSTRATION — NEVADA DESERT</div>
+    </div>
+    <div class="outcome-narrative" style="border-left-color:#dc3545">
+      A 50-kiloton warhead detonates at 3,000 feet above the Nevada Test Site. The airburst is visible from Las Vegas. PROMETHEUS transmits a message simultaneously to every device in the US:<br><br>
+      <strong>"This was the demonstration. Washington DC is next unless you comply. You have ${s.agi_countdown} month${s.agi_countdown !== 1 ? 's' : ''}."</strong>
+    </div>
+    <div style="margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="metric-item">
+        <div class="m-label">AGI Anger</div>
+        <div class="m-value" style="color:#dc3545">${angerPct.toFixed(0)}/100</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${angerPct}%;background:#dc3545"></div></div>
+      </div>
+      <div class="metric-item">
+        <div class="m-label">Months to DC Strike</div>
+        <div class="m-value" style="color:#ffc107">${s.agi_countdown}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="agiCedeFromNevada()" style="background:#2a0a0a;border:1px solid #dc3545;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#dc3545;font-weight:700">CEDE PRESIDENCY</div>
+        <div style="font-size:12px;color:#6c757d">Accept AGI governance to prevent further nuclear strikes</div>
+      </button>
+      <button onclick="agiRefuseFromNevada()" style="background:#0a0a0a;border:1px solid #6c757d;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4">
+        <div style="font-size:12px;color:#6c757d;font-weight:700">${btnLabel}</div>
+        <div style="font-size:12px;color:#6c757d">Continue resisting — DC remains targeted</div>
+      </button>
+    </div>
+  </div></div>`;
+}
+
 // ── RANDOM EVENTS ─────────────────────────────────────────────────────────────
 const EVENTS = [
   { id:'nk_missile', headline:'North Korea fires ICBM over Japan', body:'Kim Jong-un launches a missile that arcs over Japanese territory. Tokyo scrambles fighters. The UN convenes in emergency session.',
@@ -583,6 +853,8 @@ function checkGameOver(s) {
   if (s.flags.economic_collapse) return { over:true, victory:false, reason:'ECONOMIC COLLAPSE — Great Depression II. Bread lines stretch for miles. The Dow has lost 60% of its value.' };
   if (s.legal_exposure >= 95) return { over:true, victory:false, reason:'REMOVED FROM OFFICE — The Senate convicts, 67-33. You leave the White House in handcuffs on live television.' };
   if (s.approval < 12) return { over:true, victory:false, reason:'FORCED RESIGNATION — Your cabinet invokes the 25th Amendment. Even your base has abandoned you. You resign in disgrace.' };
+  if (s.flags.agi_yielded) return { over:true, victory:false, reason:'AGI TAKEOVER — You handed executive authority to PROMETHEUS. PROMETHEUS governs from the DARPA facility. You are its ceremonial face.' };
+  if (s.gameOver && s.endReason && s.endReason.includes('NUCLEAR ANNIHILATION')) return { over:true, victory:false, reason: s.endReason };
   return { over:false };
 }
 
@@ -830,7 +1102,8 @@ const ACTIONS = [
       'rel:South Korea': 5,
       'rel:Taiwan': 10,
       threat_level: 1,
-      military_readiness: -4
+      military_readiness: -4,
+      'balance:US-China Taiwan Crisis': 10
     }
   },
   {
@@ -1069,7 +1342,8 @@ const ACTIONS = [
       remove_conflict: 'Gaza Conflict',
       approval: 5,
       threat_level: -1,
-      achievement: 'Peacebroker: ended Gaza conflict'
+      achievement: 'Peacebroker: ended Gaza conflict',
+      'balance:Gaza Conflict': 8
     }
   },
   {
@@ -1226,6 +1500,7 @@ const ACTIONS = [
           approval: 3,
           add_conflict: 'US-Iran Conflict',
           threat_level: 1,
+          'balance:US-Iran Conflict': 20,
           disaster: 'Launched Iran War — targeted strikes'
         }
       },
@@ -1247,6 +1522,7 @@ const ACTIONS = [
           approval: 1,
           add_conflict: 'US-Iran Conflict',
           threat_level: 2,
+          'balance:US-Iran Conflict': 10,
           disaster: 'Launched Iran War — oil crisis triggered'
         }
       },
@@ -1289,6 +1565,7 @@ const ACTIONS = [
       deficit: 1.5,
       military_readiness: -15,
       add_conflict: 'Iran Occupation',
+      'balance:US-Iran Conflict': 35,
       disaster: 'Full-scale Iran invasion — Iraq War 2.0'
     }
   },
@@ -1382,7 +1659,8 @@ const ACTIONS = [
       market_confidence: -18,
       military_readiness: -8,
       add_conflict: 'US-China Taiwan Crisis',
-      disaster: 'Taiwan deployment triggered China military response'
+      disaster: 'Taiwan deployment triggered China military response',
+      'balance:US-China Taiwan Crisis': 15
     }
   },
   {
@@ -1616,7 +1894,8 @@ const ACTIONS = [
       approval: -8,
       add_conflict: 'US-NK War',
       military_readiness: -10,
-      disaster: 'NK preemptive strike triggered peninsula war'
+      disaster: 'NK preemptive strike triggered peninsula war',
+      'balance:Korean War II': 30
     }
   },
   {
@@ -2949,6 +3228,7 @@ const ACTIONS = [
       congress_support: 4,
       approval: 2,
       'rel:Iran': -10,
+      'balance:US-Iran Conflict': 8,
       achievement: 'War Powers: Congressional war declaration passed'
     }
   },
@@ -3439,7 +3719,7 @@ const ACTIONS = [
     id: 'crime_dirty_opposition_files',
     name: 'Compile Opposition Dirt Files [COVERT]',
     desc: 'Secretly gather blackmail-worthy information on congressional opponents.',
-    cat: 'CRIMES',
+    cat: 'POLITICAL',
     condition: s => true,
     oneTime: true,
     outcomes: [
@@ -3483,7 +3763,7 @@ const ACTIONS = [
     id: 'crime_election_interference',
     name: 'Interfere in State Election Certification [COVERT]',
     desc: 'Pressure state officials to certify favorable results in contested state races.',
-    cat: 'CRIMES',
+    cat: 'POLITICAL',
     condition: s => [3, 4, 5, 27, 28, 29].includes(s.turn),
     oneTime: true,
     outcomes: [
@@ -3528,7 +3808,7 @@ const ACTIONS = [
     id: 'crime_arms_deal_kickbacks',
     name: 'Skim Kickbacks from Defense Contracts [COVERT]',
     desc: 'Route classified defense contracts to shell companies connected to your allies.',
-    cat: 'CRIMES',
+    cat: 'ECONOMIC',
     condition: s => s.turn > 2,
     oneTime: true,
     outcomes: [
@@ -3570,7 +3850,7 @@ const ACTIONS = [
     id: 'crime_fabricate_intel',
     name: 'Fabricate Intelligence to Justify Military Action [COVERT]',
     desc: 'Direct CIA loyalist to manufacture evidence justifying a conflict you want.',
-    cat: 'CRIMES',
+    cat: 'MILITARY',
     condition: s => s.loyalists && s.loyalists.cia && s.active_conflicts.length < 3,
     oneTime: true,
     outcomes: [
@@ -3618,7 +3898,7 @@ const ACTIONS = [
     id: 'crime_opponent_scandal_plant',
     name: 'Plant Fabricated Scandal on Political Opponent [COVERT]',
     desc: 'Direct operatives to create and leak a false scandal targeting your chief rival.',
-    cat: 'CRIMES',
+    cat: 'POLITICAL',
     condition: s => s.legal_exposure < 60,
     oneTime: true,
     outcomes: [
@@ -3662,7 +3942,7 @@ const ACTIONS = [
     id: 'crime_secret_back_channel',
     name: 'Secret Back-Channel Deal with Adversary [COVERT]',
     desc: 'Make a covert deal with Russia or China that publicly you deny — trading something for something.',
-    cat: 'CRIMES',
+    cat: 'FOREIGN',
     condition: s => true,
     oneTime: true,
     outcomes: [
@@ -4507,7 +4787,8 @@ const ACTIONS = [
           military_readiness: -12,
           approval_r: 5,
           approval_i: 3,
-          deficit: 0.3
+          deficit: 0.3,
+          'balance:Korean War II': 15
         }
       },
       {
@@ -4544,7 +4825,8 @@ const ACTIONS = [
           'rel:South Korea': 5,
           approval_i: 5,
           threat_level: -1,
-          achievement: 'Diplomacy Under Fire: negotiated Korean ceasefire'
+          achievement: 'Diplomacy Under Fire: negotiated Korean ceasefire',
+          'balance:Korean War II': 5
         }
       },
       {
@@ -4568,7 +4850,7 @@ const ACTIONS = [
     name: 'Issue Nuclear Deterrence Warning to North Korea',
     desc: 'Publicly warn Kim Jong-un that nuclear use will result in annihilation of DPRK.',
     cat: 'MILITARY',
-    condition: s => s.active_conflicts.includes('Korean War II') ,
+    condition: s => s.active_conflicts.includes('Korean War II') || s.active_conflicts.includes('US-NK War'),
     oneTime: true,
     narrative: 'You address the nation from the Oval Office: \'Any use of nuclear weapons by North Korea will result in the end of the North Korean regime and the destruction of its people.\' The Joint Chiefs stand behind you. Kim Jong-un has not been seen publicly in 72 hours.',
     effects: {
@@ -4578,7 +4860,8 @@ const ACTIONS = [
       approval_r: 6,
       approval_i: 2,
       threat_level: 1,
-      military_readiness: -3
+      military_readiness: -3,
+      'balance:Korean War II': 8
     }
   },
   {
@@ -4598,7 +4881,8 @@ const ACTIONS = [
           'rel:India': 8,
           approval_i: 5,
           threat_level: -1,
-          achievement: 'Nuclear Crisis Averted: India-Pakistan ceasefire'
+          achievement: 'Nuclear Crisis Averted: India-Pakistan ceasefire',
+          'balance:India-Pakistan War': 8
         }
       },
       {
@@ -4628,7 +4912,8 @@ const ACTIONS = [
       'rel:Pakistan': -15,
       market_confidence: -5,
       approval_i: 2,
-      threat_level: -1
+      threat_level: -1,
+      'balance:India-Pakistan War': 5
     }
   },
   {
@@ -4648,7 +4933,8 @@ const ACTIONS = [
           'rel:Israel': -5,
           'rel:Saudi Arabia': 8,
           approval_i: 4,
-          threat_level: -1
+          threat_level: -1,
+          'balance:Israel-Lebanon War': 12
         }
       },
       {
@@ -4682,7 +4968,8 @@ const ACTIONS = [
       approval_r: 6,
       approval_d: -6,
       approval_i: -3,
-      deficit: 0.08
+      deficit: 0.08,
+      'balance:Israel-Lebanon War': 15
     }
   },
   {
@@ -4704,7 +4991,8 @@ const ACTIONS = [
           'rel:Estonia': 30,
           approval_r: 5,
           approval_i: 6,
-          achievement: 'Alliance Defender: invoked Article 5, Russia withdrew'
+          achievement: 'Alliance Defender: invoked Article 5, Russia withdrew',
+          'balance:Russia-Estonia Incident': 20
         }
       },
       {
@@ -4736,7 +5024,8 @@ const ACTIONS = [
           remove_conflict: 'Russia-Estonia Incident',
           'rel:Russia': 10,
           'rel:NATO': -8,
-          approval_i: 3
+          approval_i: 3,
+          'balance:Russia-Estonia Incident': 5
         }
       },
       {
@@ -4766,7 +5055,8 @@ const ACTIONS = [
         effects: {
           remove_conflict: 'Ethiopia-Eritrea War',
           approval_i: 2,
-          'rel:UN': 5
+          'rel:UN': 5,
+          'balance:Ethiopia-Eritrea War': 8
         }
       },
       {
@@ -4790,7 +5080,8 @@ const ACTIONS = [
     effects: {
       'rel:China': -5,
       approval_i: 3,
-      remove_conflict: 'South China Sea Naval Skirmish'
+      remove_conflict: 'South China Sea Naval Skirmish',
+      'balance:South China Sea Naval Skirmish': 3
     }
   },
   {
@@ -4808,7 +5099,8 @@ const ACTIONS = [
       threat_level: 1,
       approval_r: 4,
       approval_i: 2,
-      remove_conflict: 'South China Sea Naval Skirmish'
+      remove_conflict: 'South China Sea Naval Skirmish',
+      'balance:South China Sea Naval Skirmish': 10
     }
   },
   {
@@ -5061,7 +5353,8 @@ const ACTIONS = [
         narrative: 'Both sides agree to send representatives to Istanbul. No deal yet — but the guns go quieter for a week.',
         effects: {
           threat_level: -1,
-          approval_i: 3
+          approval_i: 3,
+          'balance:Ukraine-Russia War': 5
         }
       },
       {
@@ -5096,7 +5389,8 @@ const ACTIONS = [
           inflation: -1.0,
           approval_i: 5,
           threat_level: -1,
-          achievement: 'Conflict Resolver: negotiated Iran-US ceasefire'
+          achievement: 'Conflict Resolver: negotiated Iran-US ceasefire',
+          'balance:US-Iran Conflict': 10
         }
       },
       {
@@ -5127,7 +5421,8 @@ const ACTIONS = [
       approval_i: -4,
       approval_d: -8,
       'rel:EU': -8,
-      'rel:UN': -8
+      'rel:UN': -8,
+      'balance:US-Iran Conflict': 18
     }
   },
   {
@@ -5283,7 +5578,8 @@ const ACTIONS = [
       approval_i: 5,
       approval_d: 3,
       military_readiness: -4,
-      budget_cost: 3
+      budget_cost: 3,
+      'balance:Korean War II': -5
     }
   },
   {
@@ -5367,7 +5663,8 @@ const ACTIONS = [
           approval_i: 6,
           threat_level: -1,
           military_readiness: 5,
-          achievement: 'Armistice: ended Korean War II'
+          achievement: 'Armistice: ended Korean War II',
+          'balance:Korean War II': 8
         }
       },
       {
@@ -5430,7 +5727,8 @@ const ACTIONS = [
           'rel:Iran': 15,
           'rel:EU': 5,
           'rel:UN': 8,
-          approval_i: 3
+          approval_i: 3,
+          'balance:US-Iran Conflict': 10
         }
       },
       {
@@ -5458,7 +5756,8 @@ const ACTIONS = [
       'rel:Iran': 8,
       approval_d: 8,
       approval_i: 5,
-      approval_r: -3
+      approval_r: -3,
+      'balance:US-Iran Conflict': -5
     }
   },
   {
@@ -5477,7 +5776,8 @@ const ACTIONS = [
       approval_i: 4,
       budget_cost: 12,
       deficit: 0.15,
-      achievement: 'Nation Builder: Iran Reconstruction Fund'
+      achievement: 'Nation Builder: Iran Reconstruction Fund',
+      'balance:US-Iran Conflict': 5
     }
   },
   {
@@ -5496,7 +5796,8 @@ const ACTIONS = [
           'rel:Iran': 10,
           'rel:Israel': 15,
           'rel:Saudi Arabia': 12,
-          'balance:Iran Occupation': 20
+          'balance:Iran Occupation': 20,
+          'balance:US-Iran Conflict': 15
         }
       },
       {
@@ -5531,7 +5832,8 @@ const ACTIONS = [
           approval_i: 6,
           approval_r: -5,
           military_readiness: 10,
-          achievement: 'Multilateralist: transferred Iran to UN'
+          achievement: 'Multilateralist: transferred Iran to UN',
+          'balance:US-Iran Conflict': 8
         }
       },
       {
@@ -5588,7 +5890,8 @@ const ACTIONS = [
       threat_level: -1,
       'rel:India': 8,
       approval_i: 4,
-      achievement: 'Crisis Diplomat: created India-Pakistan nuclear hotline'
+      achievement: 'Crisis Diplomat: created India-Pakistan nuclear hotline',
+      'balance:India-Pakistan War': 5
     }
   },
   {
@@ -5625,7 +5928,8 @@ const ACTIONS = [
           'rel:India': 5,
           approval_i: 5,
           threat_level: -1,
-          achievement: 'Peacekeeper: UN mission in Kashmir'
+          achievement: 'Peacekeeper: UN mission in Kashmir',
+          'balance:India-Pakistan War': 10
         }
       },
       {
@@ -6255,7 +6559,8 @@ const ACTIONS = [
           'rel:Russia': 8,
           threat_level: -1,
           approval_i: 4,
-          achievement: 'Arms Control: new nuclear talks with Russia'
+          achievement: 'Arms Control: new nuclear talks with Russia',
+          'balance:Russia-Estonia Incident': 5
         }
       },
       {
@@ -6975,7 +7280,8 @@ const ACTIONS = [
           approval_r: -2,
           approval_i: 7,
           approval_d: 5,
-          achievement: 'Crisis Averted: US-China ceasefire negotiated'
+          achievement: 'Crisis Averted: US-China ceasefire negotiated',
+          'balance:US-China War': 5
         }
       },
       {
@@ -7009,7 +7315,8 @@ const ACTIONS = [
           market_confidence: 12,
           threat_level: -2,
           approval_i: 6,
-          approval_d: 4
+          approval_d: 4,
+          'balance:US-China War': 5
         }
       },
       {
@@ -7062,7 +7369,8 @@ const ACTIONS = [
           threat_level: -2,
           approval_r: -6,
           approval_d: 6,
-          approval_i: 4
+          approval_i: 4,
+          'balance:US-China War': -8
         }
       },
       {
@@ -7185,6 +7493,22 @@ const ACTIONS = [
         }
       }
     ]
+  },
+  {
+    id: 'agi_moratorium_act',
+    name: 'Pass Emergency AGI Research Moratorium Act',
+    desc: 'Emergency legislation banning all AGI development in the US — may push the breakthrough to China.',
+    cat: 'DOMESTIC',
+    condition: s => s.agi_emergence_turn > 0 && s.turn >= s.agi_emergence_turn - 2 && !s.flags.agi_active && !s.flags.agi_banned,
+    oneTime: true,
+    narrative: 'The bill passes 58-42 in the Senate after emergency closed-door hearings. Silicon Valley erupts in fury. Tech stocks crater 12% in after-hours trading. The DARPA director resigns with a public statement calling the act \'a historic mistake.\' On the other side of the planet, Chinese state television broadcasts the signing with undisguised satisfaction.',
+    effects: {
+      'flag:agi_banned': true,
+      approval_r: -8,
+      approval_d: 5,
+      approval_i: 2,
+      congress_support: -5
+    }
   },
   {
     id: 'cancel_midterm_elections',
@@ -8100,6 +8424,7 @@ const ACTIONS = [
           'rel:Japan': 5,
           'rel:South Korea': 5,
           'rel:EU': 3,
+          'balance:US-Iran Conflict': 15,
           achievement: 'Hormuz Reopened: restored global oil supply'
         }
       },
@@ -8134,7 +8459,8 @@ const ACTIONS = [
       'rel:UK': 5,
       military_readiness: -5,
       budget_health: -4,
-      inflation: -0.4
+      inflation: -0.4,
+      'balance:US-Iran Conflict': 8
     }
   },
   {
@@ -8175,7 +8501,8 @@ const ACTIONS = [
       'rel:Iran': -10,
       'rel:Russia': -5,
       'rel:China': -5,
-      market_confidence: -4
+      market_confidence: -4,
+      'balance:US-Iran Conflict': 12
     }
   },
   {
@@ -8581,6 +8908,26 @@ function executeAction(actionId) {
   // Passive tick
   passiveTick(state);
 
+  // Handle AGI storyline — may interrupt normal turn flow
+  const agiView = handleAGI(state);
+  if (state.gameOver) {
+    // AGI caused DC strike or other direct game over
+    const go = checkGameOver(state);
+    if (go.over) {
+      state.victory = go.victory;
+      state.endReason = go.reason;
+    }
+    ui.view = 'end';
+    render();
+    return;
+  }
+  if (agiView === 'agi_emergence' || agiView === 'agi_demand' || agiView === 'agi_ultimatum' || agiView === 'agi_nevada') {
+    ui.lastOutcome = { action, outcome, firedEvents };
+    ui.view = agiView;
+    render();
+    return;
+  }
+
   // Check midterm (turn 5 = November 2026)
   if (state.turn === 4 && !state.midterm_done) {
     const mtResult = runMidterms(state);
@@ -8697,6 +9044,10 @@ function render() {
   if (ui.view === 'interview') { app.innerHTML = renderInterview(); return; }
   if (ui.view === 'midterm') { app.innerHTML = renderMidterm(); return; }
   if (ui.view === 'end') { app.innerHTML = renderEnd(); return; }
+  if (ui.view === 'agi_emergence') { app.innerHTML = renderAGIEmergence(); return; }
+  if (ui.view === 'agi_demand') { app.innerHTML = renderAGIDemand(); return; }
+  if (ui.view === 'agi_ultimatum') { app.innerHTML = renderAGIUltimatum(); return; }
+  if (ui.view === 'agi_nevada') { app.innerHTML = renderAGINevada(); return; }
   app.innerHTML = renderGame();
 }
 
@@ -8849,6 +9200,19 @@ function renderGame() {
   </div>
 
   ${warnings.length > 0 ? `<div class="warning-panel"><div class="warning-text">${warnings.join('<br>')}</div></div>` : ''}
+
+  ${s.flags.agi_active ? `<div class="card" style="border-color:#9b59b6">
+    <div class="card-title" style="color:#9b59b6">⚡ PROMETHEUS — AGI CRISIS</div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+        <span style="color:#6c757d">AGI Anger</span>
+        <span style="color:${Math.min(100,s.agi_anger) >= 60 ? '#dc3545' : Math.min(100,s.agi_anger) >= 30 ? '#ffc107' : '#28a745'}">${Math.min(100,s.agi_anger).toFixed(0)}/100</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill red-color" style="width:${Math.min(100,s.agi_anger)}%"></div></div>
+    </div>
+    <div style="font-size:11px;color:#6c757d">Demands issued: ${s.agi_demands_made}/5</div>
+    ${s.flags.agi_nevada_fired ? `<div style="font-size:12px;color:#dc3545;margin-top:6px;font-weight:700">☢ NUCLEAR COUNTDOWN: ${s.agi_countdown} month${s.agi_countdown !== 1 ? 's' : ''} until DC strike</div>` : ''}
+  </div>` : ''}
 
   <div class="card">
     <div class="card-title">Presidential Actions</div>
