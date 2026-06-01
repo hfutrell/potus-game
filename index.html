@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>POTUS — Presidential Simulation</title>
+<title>POTUS — Iran War Presidency</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d0d14;color:#e8e8f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
@@ -177,21 +177,39 @@ const START_YEAR = 2026;
 const APPROVAL_SCALE = 0.55;
 
 // ── INITIAL STATE ─────────────────────────────────────────────────────────────
+// CONTEXT: The US invaded Iran in March 2026. It is now June 2026 — 3 months in.
+// The war is ongoing. Oil prices spiked. Approval at 38.1%. Three active conflicts.
 function createState() {
   return {
     turn: 0, gameOver: false, victory: false, endReason: '',
-    approval_r: 88, approval_d: 10, approval_i: 40, approval: 47,
-    gdp_growth: 2.1, unemployment: 4.1, inflation: 3.8,
-    interest_rate: 5.25, market_confidence: 62,
-    military_readiness: 78, threat_level: 2,
-    legal_exposure: 25, civil_unrest: 30, congress_support: 53,
-    media_favorability: 22,
-    house_seats: 222, senate_seats: 53, budget_health: 72,
+    // Iran war starting conditions: R hawks support it, D/I are skeptical
+    // 0.32*78 + 0.35*8 + 0.33*32 = 24.96 + 2.80 + 10.56 = 38.32 ≈ 38.1%
+    approval_r: 78, approval_d: 8, approval_i: 32, approval: 38.1,
+    gdp_growth: 1.8,        // War uncertainty slowing growth
+    unemployment: 4.2,
+    inflation: 3.8,          // As specified — oil shock building
+    interest_rate: 5.50,    // Fed tightening due to war inflation risk
+    market_confidence: 49,   // Markets rattled by Iran invasion
+    military_readiness: 68,  // Forces deployed — somewhat depleted
+    threat_level: 3,         // HIGH — active Middle East war
+    legal_exposure: 25, civil_unrest: 38, congress_support: 50,
+    media_favorability: 18,  // Press coverage of war casualties is brutal
+    house_seats: 222, senate_seats: 53,
+    budget_health: 58,       // War spending already draining budget
     consecutive_low_market: 0,
-    active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict'],
+    // THREE ACTIVE CONFLICTS at game start
+    active_conflicts: ['Ukraine-Russia War', 'Gaza Conflict', 'Iran-US War'],
     completed_actions: new Set(),
     action_cooldowns: {},
-    news_log: ['Your presidency begins. The world watches.'],
+    // Starting news briefing reflects Iran war situation
+    news_log: [
+      'Day 63 of Iran War — IRGC resistance stiffening in southern provinces',
+      'Oil at $162/barrel — gas prices hit record $6.20 nationwide',
+      'UN Security Council 11-4 condemns invasion; US vetoes resolution',
+      'NATO: most allies refuse to participate; UK gives \'limited intelligence support\'',
+      'Iran proxies attack US bases in Iraq and Syria — 847 US casualties total',
+      'Congress 52-48 funds war continuation; 14 Republicans voted against',
+    ],
     major_achievements: [], major_disasters: [],
     action_history: [],
     seen_events: new Set(),
@@ -199,25 +217,44 @@ function createState() {
     pending_events: [],
     flags: {
       ukraine_war_active: true, israel_conflict_active: true,
-      iran_nuclear_program: true, china_taiwan_tension: true,
+      iran_nuclear_program: false,  // DESTROYED in initial strikes
+      china_taiwan_tension: true,
       nk_missile_tests: true, border_crisis: true,
       massive_tariffs: false, nato_stressed: true,
-      iran_war: false, china_war: false, world_war_3: false,
+      iran_war: true,       // ALREADY AT WAR WITH IRAN
+      iran_deal_happened: false,  // No deal — went straight to war
+      china_war: false, world_war_3: false,
       economic_collapse: false, shutdown_active: false,
       ukraine_peace: false, nk_summit_happened: false,
-      phe_declared: false, iran_deal_happened: false,
+      phe_declared: false,
       purged_doj: false, russia_warming: false,
       pandemic_active: false, pandemic_warning: false,
-      trade_war_china: true, recession_risk: false,
+      trade_war_china: true, recession_risk: true,  // War risk is real
       summit_done: false, ceasefire_tried: false,
     },
+    // Relations adjusted for Iran war: allies upset, Israel/Saudi pleased
     relations: {
-      Russia: -38, China: -25, Ukraine: 52, EU: 22, UK: 62,
-      NATO: 28, Israel: 72, 'Saudi Arabia': 45, Iran: -82,
-      'North Korea': -88, Mexico: 15, Canada: 32, Taiwan: 62,
-      Japan: 68, 'South Korea': 65, UN: 12, Turkey: 20, India: 45
+      Russia: -45,    // More hostile — watching US military overextension
+      China: -32,     // Opposed to US unilateral action
+      Ukraine: 52,    // Unchanged
+      EU: 8,          // Critical of invasion, relations strained
+      UK: 52,         // Reluctant limited support only
+      NATO: 18,       // Deeply divided — most members opposed invasion
+      Israel: 85,     // Delighted — Iran nuclear program destroyed
+      'Saudi Arabia': 65,  // Quietly supportive — Iran weakened
+      Iran: -100,     // AT WAR — zero diplomatic relations
+      'North Korea': -88, Mexico: 15, Canada: 22,
+      Taiwan: 62,     // Worried US military is distracted
+      Japan: 60,      // Supportive but worried about NK opportunism
+      'South Korea': 58, UN: -15,  // UN formally condemned invasion
+      Turkey: 8,      // Complicated — opposed war, sees opportunity
+      India: 40       // Neutral, abstained at UN
     },
-    conflict_balances: { 'Ukraine-Russia War': -12, 'Gaza Conflict': 20 }
+    conflict_balances: {
+      'Ukraine-Russia War': -12,
+      'Gaza Conflict': 20,
+      'Iran-US War': 22    // US achieved early objectives but resistance building
+    }
   };
 }
 
@@ -385,10 +422,16 @@ function passiveTick(s) {
     }
   }
 
-  // Iran war sustained inflation
+  // Iran war sustained effects — oil shock + military costs + war fatigue
   if (s.flags.iran_war) {
     if (!s.active_conflicts.includes('Iran-US War')) s.active_conflicts.push('Iran-US War');
-    s.inflation = clamp(s.inflation + 0.10, -2, 40);
+    // Oil price keeps inflation elevated
+    s.inflation = clamp(s.inflation + 0.12, -2, 40);
+    // War fatigue hits independents slowly
+    s.approval_i = clamp(s.approval_i - 0.15, 5, 95);
+    // Budget drain from war spending
+    s.budget_health = clamp(s.budget_health - 0.3, 0, 100);
+    syncApproval(s);
   }
 
   // Economic collapse via sustained low market
@@ -1300,8 +1343,8 @@ function renderGame() {
   return `<div class="fade-in">
   <div class="header-bar">
     <div class="header-title">
-      <span>POTUS</span>
-      <span>${d.month} ${d.year}</span>
+      <span>POTUS ⚔ Iran War</span>
+      <span>${d.month} ${d.year} · Day ${63 + s.turn * 30} of War</span>
     </div>
     <div class="header-stats">
       <div class="stat-pill"><div class="val" style="color:${approvalColor}">${s.approval.toFixed(0)}%</div><div class="lbl">Approval</div></div>
