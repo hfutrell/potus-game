@@ -420,7 +420,7 @@ function passiveTick(s) {
 
   // Iran war sustained inflation
   if (s.flags.iran_war) {
-    if (!s.active_conflicts.includes('Iran-US War')) s.active_conflicts.push('Iran-US War');
+    if (!s.active_conflicts.includes('US-Iran Conflict')) s.active_conflicts.push('US-Iran Conflict');
     s.inflation = clamp(s.inflation + 0.10, -2, 40);
   }
 
@@ -669,7 +669,7 @@ const ACTIONS = [
   { id:'iran_nuclear_strike', name:'Strike Iranian Nuclear Facilities', desc:'Launch precision airstrikes on Iran\'s nuclear program.',
     cat:'MILITARY', condition: s => s.flags.iran_nuclear_program && !s.flags.iran_war, oneTime:true,
     narrative:'B-2s from Diego Garcia. Cruise missiles from three destroyers. The Fordow and Natanz facilities are rubble by dawn. Iran vows "devastating retaliation." Oil spikes to $160/barrel. Your base cheers. The world braces.',
-    effects:{ approval_r:8, approval_d:-10, approval_i:-3, 'rel:Iran':-30, 'rel:Israel':15, 'rel:Saudi Arabia':10, 'flag:iran_nuclear_program':false, 'flag:iran_war':true, inflation:3.5, market_confidence:-15, threat_level:2, military_readiness:-5, disaster:'Initiated Iran War', 'add_conflict':'Iran-US War' } },
+    effects:{ approval_r:8, approval_d:-10, approval_i:-3, 'rel:Iran':-30, 'rel:Israel':15, 'rel:Saudi Arabia':10, 'flag:iran_nuclear_program':false, 'flag:iran_war':true, inflation:3.5, market_confidence:-15, threat_level:2, military_readiness:-5, disaster:'Initiated Iran War', 'add_conflict':'US-Iran Conflict' } },
 
   { id:'deploy_carrier', name:'Deploy Carrier Strike Group', desc:'Show of force — position naval assets strategically.',
     cat:'MILITARY', condition: s => true, cooldown:4,
@@ -1243,7 +1243,7 @@ function renderInterview() {
     '<div style="display:flex;flex-direction:column;gap:10px">' +
     q.answers.map((ans,i) =>
       '<button onclick="answerInterview(' + i + ')" style="background:#13131f;border:1px solid #1e2035;border-radius:10px;padding:14px;text-align:left;cursor:pointer;color:#e8e8f4" ' +
-      'onmouseover="this.style.borderColor='#ffc107'" onmouseout="this.style.borderColor='#1e2035'">' +
+      'onmouseover="this.style.borderColor=\'#ffc107\'" onmouseout="this.style.borderColor=\'#1e2035\'">' +
       '<div style="font-size:12px;color:#ffc107">' + ans.label + '</div>' +
       '<div style="font-size:13px">"' + ans.text + '"</div></button>'
     ).join('') +
@@ -1281,7 +1281,7 @@ function isActionAvailable(s, action) {
 // Conflict-specific action IDs — guaranteed to appear when conflict is active
 const CONFLICT_PRIORITY_IDS = {
   'US-Iran Conflict': ['reopen_hormuz','tanker_escort','hormuz_intl_coalition','naval_show_force','iran_proxy_strike','iran_ceasefire_deal'],
-  'Iran-US War': ['reopen_hormuz','iran_proxy_strike','iran_ceasefire_deal'],
+  'US-Iran Conflict': ['reopen_hormuz','iran_proxy_strike','iran_ceasefire_deal'],
   'Ukraine-Russia War': ['ukraine_peace_deal','cut_ukraine_aid','double_ukraine_aid','summit_putin'],
   'Gaza Conflict': ['israel_ceasefire','deal_with_saudi'],
 };
