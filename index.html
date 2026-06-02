@@ -460,10 +460,18 @@ function passiveTick(s) {
     s.inflation = clamp(s.inflation + 0.10, -2, 40);
   }
 
-  // Economic collapse via sustained low market
-  if (s.market_confidence < 15) s.consecutive_low_market++;
-  else s.consecutive_low_market = 0;
-  if (s.consecutive_low_market >= 3 && !s.flags.economic_collapse) {
+  // Economic collapse via sustained low market (4 consecutive turns)
+  if (s.market_confidence < 15) {
+    s.consecutive_low_market++;
+    const turnsLeft = Math.max(0, 4 - s.consecutive_low_market);
+    if (turnsLeft === 3) addNews(s, '⚠ MARKET CRISIS: Confidence critically low — 3 months before economic collapse');
+    else if (turnsLeft === 2) addNews(s, '⚠⚠ MARKET CRISIS: Markets failing — 2 months before Great Depression II');
+    else if (turnsLeft === 1) addNews(s, '🚨 FINAL WARNING: Markets on the brink — 1 month before economic collapse');
+    else if (turnsLeft === 0) addNews(s, '💥 MARKETS HAVE COLLAPSED — Great Depression II begins this month');
+  } else {
+    s.consecutive_low_market = 0;
+  }
+  if (s.consecutive_low_market >= 4 && !s.flags.economic_collapse) {
     s.flags.economic_collapse = true;
     addNews(s, '💥 ECONOMIC COLLAPSE — markets in freefall, circuit breakers triggered');
   }
@@ -9369,7 +9377,13 @@ function renderGame() {
   // Warnings
   let warnings = [];
   if (s.approval < 20) warnings.push('⚠ CRITICAL: Approval at ' + s.approval.toFixed(0) + '% — cabinet may invoke 25th Amendment');
-  if (s.market_confidence < 25) warnings.push('⚠ MARKETS: Confidence at ' + s.market_confidence.toFixed(0) + '/100 — collapse risk growing');
+  if (s.consecutive_low_market > 0) {
+    const turnsLeft = 4 - s.consecutive_low_market;
+    if (turnsLeft <= 0) warnings.push('💥 ECONOMIC COLLAPSE IMMINENT — Great Depression II triggered');
+    else warnings.push('💸 MARKET CRISIS: ' + turnsLeft + ' month' + (turnsLeft===1?'':'s') + ' until economic collapse (confidence: ' + s.market_confidence.toFixed(0) + '/100)');
+  } else if (s.market_confidence < 25) {
+    warnings.push('⚠ MARKETS: Confidence at ' + s.market_confidence.toFixed(0) + '/100 — collapse risk growing');
+  }
   if (s.legal_exposure > 75) warnings.push('⚠ LEGAL: Exposure at ' + s.legal_exposure.toFixed(0) + '/100 — impeachment proceedings imminent');
   if (s.civil_unrest > 70) warnings.push('⚠ UNREST: Civil unrest at ' + s.civil_unrest.toFixed(0) + '/100 — order breaking down');
   if (s.inflation > 7) warnings.push('⚠ INFLATION: At ' + s.inflation.toFixed(1) + '% — economic crisis looming');
